@@ -1,10 +1,25 @@
 #!/usr/bin/python
 
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # TODO (in no particular order):
 #
 # - Don't spam to screen.
 # - Support neroAacEnc.
 # - Edit h264 profile.
+# - Cope with FLAC audio streams
+# - Add README file.
 
 import sys, getopt, re, subprocess, time
 
@@ -45,6 +60,7 @@ class InputFile:
         in_segment_tracks = False
         tracks = []
         
+        log("Calling mkvinfo to get file info:")
         subprocess.call(["mkvinfo", self.filename], stderr=log_file, stdout=log_file)
         temp_ro_log_file = open(log_file_name)
 
@@ -60,7 +76,6 @@ class InputFile:
                 elif mkvinfo_segment_tracks_re.search(line):
                     in_segment_tracks = True
                     segment_depth = self.line_depth(line)
-                    print "Segment depth %d" % segment_depth
             elif mkvinfo_start_re.search(line):
                 in_mkvinfo_output = True
 
@@ -85,10 +100,9 @@ class InputFile:
                 self.audio_type = AUDIO_CODECS[track['codec']]
             else:
                 print "Warning: ignoring track type " + track['type'] + "."
-        print "Video track num: " + self.video_track_num
-        print "Video track fps: " + self.video_fps
-        print "Audio track num: " + self.audio_track_num
-        print "Audio type: " + self.audio_type
+        print "\nInput file properties:"
+        print "  Video: h264, %s fps" % self.video_fps
+        print "  Audio: %s\n" % self.audio_type
 
     # Parses a track block from the output of mkvinfo.
     # Extracts track number, track type, codec id, and fps.
@@ -125,11 +139,14 @@ class InputFile:
     def extract_tracks(self):
         self.video_track_name = re.sub('(\..*)$', '.h264', self.filename)
         self.audio_track_name = re.sub('(\..*)$', "." + self.audio_type, self.filename)
+        print "Extracting tracks from mkv file..."
+        log("\nCalling mkvextract to demux mkv file:")
         mkvextract_retcode = subprocess.call(["mkvextract", \
                                               "tracks", \
                                               self.filename, \
                                               self.video_track_num + ":" + self.video_track_name, \
                                               self.audio_track_num + ":" + self.audio_track_name])
+        print "Extraction complete.\n"
         return self.video_track_name, self.video_fps, self.audio_track_name
 
 class VideoTrack:
@@ -152,7 +169,7 @@ class AudioTrack:
         self.output_filename = ""
 
     # Convert the audio file to the target format.
-    # Currently converts to AAC using NeroAACEnc.
+    # Currently converts to AAC using ffmpeg.
     def convert(self):
 
         if self.encoder == "neroAacEnc":
@@ -162,13 +179,15 @@ class AudioTrack:
             subprocess.call(["neroAacEnc -lc -ignorelength -q 0.20 -if audiodump.wav -of audio.m4a & mplayer audio.ac3 -vc null -vo null -channels 2 -ao pcm:fast", ""])
         elif self.encoder == "ffmpeg":
             self.output_filename = re.sub('(\..*)$', '.aac', self.filename)
+            print "Transcoding audio using ffmpeg..."
+            log("Calling ffmpeg to transcode audio")
             subprocess.call(["ffmpeg", \
                              "-i", self.filename, \
                              "-acodec", "libfaac", \
                              "-ac", "2", \
                              "-ab", "160000", \
                              self.output_filename])
-
+            print "Audio transcoding complete.\n"
         return self.output_filename
 
 class OutputFile:
@@ -177,11 +196,13 @@ class OutputFile:
         self.filename = filename
 
     def create(self, video_track, audio_track):
+        print "Muxing video and audio into MP4 file..."
         subprocess.call(["MP4Box", \
                          "-new", self.filename, \
                          "-add", video_track.output_filename, \
                          "-fps", video_track.fps, \
                          "-add", audio_track.output_filename])
+        print "Muxing complete."
 
 def main(argv):
 
@@ -229,23 +250,28 @@ def main(argv):
         usage()
         sys.exit(2)
  
+    # Create a log file.
+    log_file_name = "mkv2mp4_log_" + time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime()) + ".log"
+    log_file = open(log_file_name, "w")
+
     # Check for the existence of the programs we'll need.
-    if (subprocess.call(["which", "mkvinfo"]) != 0):
+    log("Checking for mkvinfo:")
+    if (subprocess.call(["which", "mkvinfo"], stdout=log_file) != 0):
         print "Error: mkvinfo not present."
         sys.exit(2)
-    if (subprocess.call(["which", "mkvextract"]) != 0):
+    log("Checking for mkvextract:")
+    if (subprocess.call(["which", "mkvextract"], stdout=log_file) != 0):
         print "Error: mkvextract not present."
         sys.exit(2)
-    if (subprocess.call(["which", "neroAacEnc"]) != 0):
+    log("Checking for neroAacEnc:")
+    if (subprocess.call(["which", "neroAacEnc"], stdout=log_file) != 0):
         print "Error: neroacCEnc not present."
         sys.exit(2)
-    if (subprocess.call(["which", "MP4Box"]) != 0):
+    log("Checking for MP4Box:")
+    if (subprocess.call(["which", "MP4Box"], stdout=log_file) != 0):
         print "Error: MP4Box not present."
         sys.exit(2)
-
-    # Create a log file.
-    log_file_name = "MKVConv_log_" + time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime()) + ".log"
-    log_file = open(log_file_name, "w")
+    log("")
 
     # Get file info from the input mkv file.
     mkv_file = InputFile(input_file)
@@ -261,12 +287,16 @@ def main(argv):
     converted_audio_filename = audio_track.convert()
 
     # Mux the video and audio tracks.
-    output_filename = re.sub('(\..*)$', '.mp4', input_file)
+    output_filename = "mkv2mpv_" + re.sub('(\..*)$', '.mp4', input_file)
     output_file = OutputFile(output_filename)
     output_file.create(video_track, audio_track)
     
     # All done.
-    print "Conversion complete."
+    print "\nConversion complete!  Output in %s." % output_filename
+
+def log(line):
+    log_file.write(line + "\n")
+    log_file.flush()
 
 def usage():
     print "Usage: mkv2mp4.py [options] [-i input_file]\n" + \
