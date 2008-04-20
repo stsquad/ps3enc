@@ -1,5 +1,11 @@
 #!/usr/bin/python
 
+# TODO (in no particular order):
+#
+# - Don't spam to screen.
+# - Support neroAacEnc.
+# - Edit h264 profile.
+
 import sys, getopt, re, subprocess, time
 
 file_is_mkv_re = re.compile('(\.mkv)$')
@@ -17,8 +23,8 @@ TRACK_TYPE_VIDEO = "video"
 TRACK_TYPE_AUDIO = "audio"
 
 # Mapping from the codec ID in the mkvinfo output to the file exptension.
-VIDEO_CODECS = {'V_MPEG4/ISO/AVC': '.h264'}
-AUDIO_CODECS = {'A_AAC': '.aac', 'A_AC3': '.ac3', 'A_DTS': '.dts', 'A_FLAC': '.flac'}
+VIDEO_CODECS = {'V_MPEG4/ISO/AVC': 'h264'}
+AUDIO_CODECS = {'A_AAC': 'aac', 'A_AC3': 'ac3', 'A_DTS': 'dts', 'A_FLAC': 'flac'}
 
 class InputFile:
 
@@ -27,6 +33,7 @@ class InputFile:
         self.video_track_num = ""
         self.video_fps = ""
         self.audio_track_num = ""
+        self.audio_type = ""
 
     # Use mkvinfo to get information about the tracks in thei file.
     # Currently, this gets the video track, checks that it's h264, stores
@@ -44,19 +51,27 @@ class InputFile:
         # Parse the file.
         for line in temp_ro_log_file:
             if in_mkvinfo_output:
-                if in_segment_tracks:
-                    if mkvinfo_a_track_re.search(line):
-                        tracks.append(self.parse_track(temp_ro_log_file))
+                if in_segment_tracks and (self.line_depth(line) > segment_depth):
+                    while mkvinfo_a_track_re.search(line):
+                        line, track = self.parse_track(temp_ro_log_file, self.line_depth(line))
+                        tracks.append(track)
+                elif (in_segment_tracks and self.line_depth(line) <= segment_depth):
+                    break
                 elif mkvinfo_segment_tracks_re.search(line):
                     in_segment_tracks = True
+                    segment_depth = self.line_depth(line)
+                    print "Segment depth %d" % segment_depth
             elif mkvinfo_start_re.search(line):
                 in_mkvinfo_output = True
 
         # For now we're only allowing one video and one audio track.
-        # If this isn't the case then error out.
+        # If this isn't the case then error out. = mkvinfo_track_number_re.search(line)
         # Subtitle tracks are ignored - just output a warning.
         for track in tracks:
             if track['type'] == 'video':
+                if VIDEO_CODECS[track['codec']] != 'h264':
+                    print "Error: only h264 video is supported (codec was %s)" % track['codec']
+                    sys.exit(2)
                 if self.video_track_num != "":
                     print "Error: multiple video tracks not currently supported."
                     sys.exit(2)
@@ -67,24 +82,49 @@ class InputFile:
                     print "Error: multiple audio tracks not currently supported."
                     sys.exit(2)
                 self.audio_track_num = track['num']
-                self.audio_track_codec = track['codec']
+                self.audio_type = AUDIO_CODECS[track['codec']]
             else:
                 print "Warning: ignoring track type " + track['type'] + "."
-        
-        self.video_track_num = "1"
-        self.video_fps = "25"
-        self.audio_track_num = "2"
-        self.audio_type = '.ac3'
+        print "Video track num: " + self.video_track_num
+        print "Video track fps: " + self.video_fps
+        print "Audio track num: " + self.audio_track_num
+        print "Audio type: " + self.audio_type
 
-    def parse_track(self, ro_log_file):
-        # Need to implement.
+    # Parses a track block from the output of mkvinfo.
+    # Extracts track number, track type, codec id, and fps.
+    def parse_track(self, ro_log_file, track_nest_depth):
         track = {'type': 'other'}
-        return track
+
+        for line in ro_log_file:
+            if self.line_depth(line) <= track_nest_depth:
+                break
+
+            track_number_match = mkvinfo_track_number_re.search(line)
+            if track_number_match != None:
+                track['num'] = track_number_match.group(1)
+
+            track_type_match = mkvinfo_track_type_re.search(line)
+            if track_type_match != None:
+                track['type'] = track_type_match.group(1)
+
+            codec_id_match = mkvinfo_codec_id_re.search(line)
+            if codec_id_match != None:
+                track['codec'] = codec_id_match.group(1)
+
+            video_fps_match = mkvinfo_video_fps_re.search(line)
+            if video_fps_match != None:
+                track['fps'] = video_fps_match.group(1)
+        return line, track
+
+    # Calculate how deeply a line is nested (used for parsing mkvinfo).
+    def line_depth(self, line):
+        line_start_re = re.compile('\+')
+        return line_start_re.search(line).start(0)
 
     # Use mkvextract to extract the audio and video tracks.
     def extract_tracks(self):
         self.video_track_name = re.sub('(\..*)$', '.h264', self.filename)
-        self.audio_track_name = re.sub('(\..*)$', self.audio_type, self.filename)
+        self.audio_track_name = re.sub('(\..*)$', "." + self.audio_type, self.filename)
         mkvextract_retcode = subprocess.call(["mkvextract", \
                                               "tracks", \
                                               self.filename, \
@@ -126,7 +166,7 @@ class AudioTrack:
                              "-i", self.filename, \
                              "-acodec", "libfaac", \
                              "-ac", "2", \
-                             "-ab", "256000", \
+                             "-ab", "160000", \
                              self.output_filename])
 
         return self.output_filename
