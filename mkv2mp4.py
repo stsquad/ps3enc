@@ -16,7 +16,6 @@
 # TODO (in no particular order):
 #
 # - Support neroAacEnc.
-# - Edit h264 profile.
 # - Cope with FLAC audio streams (ffmpeg rejects them?).
 # - Add README file.
 # - Delete intermediate files.
@@ -44,6 +43,10 @@ AUDIO_CODECS = {'A_AAC': 'aac', \
                 'A_AC3': 'ac3', \
                 'A_DTS': 'dts', \
                 'A_FLAC': 'flac'}
+
+# Offset of the level byte in the 
+H264_LEVEL_OFFSET = 7
+H264_MAX_OUTPUT_LEVEL = 41
 
 class InputFile:
 
@@ -110,7 +113,7 @@ class InputFile:
                 self.audio_track_num = track['num']
                 self.audio_type = AUDIO_CODECS[track['codec']]
             else:
-                print "Warning: ignoring track type " + track['type'] + "."
+                print "Warning: ignoring '%s' track." % track['type']
         print "\nInput file properties:"
         print "  Video: h264, %s fps" % self.video_fps
         print "  Audio: %s\n" % self.audio_type
@@ -170,9 +173,26 @@ class VideoTrack:
         self.fps = fps
         self.output_filename = ""
 
-    # Need to add code to set h264 profile level to 4.1 or less.
+    # From the sample files I've looked at, it looks like this just involves
+    # changing the 8th byte of the raw h264 file to the profile number with
+    # the decimal point removed (eg. 4.1 is 41 = 0x29).
+    #
+    # Should really check this though.
     def convert(self):
+        print "Updating video track..."
         self.output_filename = self.filename
+        file = open(self.filename, 'r+b')
+        file.seek(H264_LEVEL_OFFSET)
+        current_profile = file.read(1)
+        print "Current H264 level is %d" % ord(current_profile)
+        if current_profile > chr(H264_MAX_OUTPUT_LEVEL):
+            print "Changing H264 level to %d" % H264_MAX_OUTPUT_LEVEL
+            file.seek(H264_LEVEL_OFFSET)
+            file.write(chr(H264_MAX_OUTPUT_LEVEL))
+        else:
+            print "No change needed to H264 profile."
+        file.close()
+        print "Finished updating video track.\n"
         return(self.output_filename)
 
 class AudioTrack:
