@@ -15,15 +15,18 @@
 
 # TODO (in no particular order):
 #
+# - Get ffmpeg fixed to handle multichannel ordering and downmixing :(
 # - Fixup selection of audio encoder, and dependency checking.
-# - FLAC audio streams:
-#   - Garbled audio with mplayer+neroAacEnc (mplayer -channels option?).
-#   - ffmpeg rejects FLACs.
+# - Make cross-platform and test:
+#   - replace calls to 'which'
+#   - don't use fifos on Windows.
 # - Add README file.
 
 import os, getopt, re, subprocess, sys, time
+from stat import *
 
 file_is_mkv_re = re.compile('(\.mkv)$')
+file_is_mp4_re = re.compile('(\.mp4)$')
 
 mkvinfo_start_re = re.compile('\+ EBML head')
 mkvinfo_segment_tracks_re = re.compile('\+ Segment tracks')
@@ -33,6 +36,7 @@ mkvinfo_track_type_re = re.compile('\+ Track type: (.*)')
 mkvinfo_codec_id_re = re.compile('\+ Codec ID: (.*)')
 mkvinfo_video_fps_re = \
          re.compile('\+ Default duration: .*ms \((.*) fps for a video track\)')
+mkvinfo_audio_channels_re = re.compile('\+ Channels: ([0-9]+)')
 
 # Values for the track type field in the mkvinfo output.
 TRACK_TYPE_VIDEO = "video"
@@ -49,6 +53,11 @@ AUDIO_CODECS = {'A_AAC': 'aac', \
 H264_LEVEL_OFFSET = 7
 H264_MAX_OUTPUT_LEVEL = 41
 
+# Max output file size in KB.
+#
+# The Xbox 360 won't play mp4 files larger than 4GB, so we need to split them.
+MAX_OUTPUT_FILE_SIZE = 3900000
+ 
 class InputFile:
 
     def __init__(self, filename):
@@ -58,7 +67,7 @@ class InputFile:
         self.audio_track_num = ""
         self.audio_type = ""
 
-    # Use mkvinfo to get information about the tracks in thei file.
+    # Use mkvinfo to get information about the tracks in this file.
     # Currently, this gets the video track, checks that it's h264, stores
     # the framerate.
     def get_info(self):
@@ -114,11 +123,13 @@ class InputFile:
                     sys.exit(2)
                 self.audio_track_num = track['num']
                 self.audio_type = AUDIO_CODECS[track['codec']]
+                self.audio_channels = track['channels']
             else:
                 print "Warning: ignoring '%s' track." % track['type']
         print "\nInput file properties:"
         print "  Video: h264, %s fps" % self.video_fps
-        print "  Audio: %s\n" % self.audio_type
+        print "  Audio: %s, %s channels\n" % \
+                                         (self.audio_type, self.audio_channels)
 
     # Parses a track block from the output of mkvinfo.
     # Extracts track number, track type, codec id, and fps.
@@ -144,6 +155,10 @@ class InputFile:
             video_fps_match = mkvinfo_video_fps_re.search(line)
             if video_fps_match != None:
                 track['fps'] = video_fps_match.group(1)
+
+            audio_channels_match = mkvinfo_audio_channels_re.search(line)
+            if audio_channels_match != None:
+                track['channels'] = audio_channels_match.group(1)
         return line, track
 
     # Calculate how deeply a line is nested (used for parsing mkvinfo).
@@ -152,11 +167,11 @@ class InputFile:
         return line_start_re.search(line).start(0)
 
     # Use mkvextract to extract the audio and video tracks.
-    def extract_tracks(self):
-        self.video_track_name = re.sub('(\.[^\.]*)$', '.h264', self.filename)
+    def extract_tracks(self, output_filename):
+        self.video_track_name = re.sub('(\.[^\.]*)$', '.h264', output_filename)
         self.audio_track_name = re.sub('(\.[^\.]*)$', \
                                        "." + self.audio_type, \
-                                       self.filename)
+                                       output_filename)
         print "%s: Extracting tracks from mkv file..." % timestamp()
         log("\nCalling mkvextract to demux mkv file:")
         mkvextract_retcode = subprocess.call( \
@@ -166,7 +181,8 @@ class InputFile:
                           self.video_track_num + ":" + self.video_track_name, \
                           self.audio_track_num + ":" + self.audio_track_name])
         print "%s: Extraction complete.\n" % timestamp()
-        return self.video_track_name, self.video_fps, self.audio_track_name
+        return self.video_track_name, self.video_fps, self.audio_track_name, \
+                                           self.audio_type, self.audio_channels
 
 class VideoTrack:
 
@@ -204,15 +220,16 @@ class VideoTrack:
 
 class AudioTrack:
 
-    def __init__(self, filename, encoder):
+    def __init__(self, filename, audio_type, audio_channels):
         self.filename = filename
-        self.encoder = encoder
+        self.audio_type = audio_type
+        self.audio_channels = audio_channels
         self.output_filename = ""
 
     # Convert the audio file to the target format.
     # Currently converts to AAC using ffmpeg.
     def convert(self):
-        if self.encoder == "neroAacEnc":
+        if audio_encoder == "neroAacEnc":
             print "%s: Transcoding audio using neroAacEnc..." % timestamp()
             self.output_filename = re.sub('(\.[^\.]*)$', '.m4a', self.filename)
             fifo_name = re.sub('(\.[^\.]*)$', '.wav', self.filename)
@@ -220,16 +237,16 @@ class AudioTrack:
                 os.mkfifo(fifo_name)
             except:
                 pass
-            nero_popen = subprocess.Popen(["neroAacEnc", "-lc", "-ignorelength", \
-                                "-br", "160", \
+            nero_popen = subprocess.Popen(["neroAacEnc", "-ignorelength", \
+                                "-lc", "-q", "0.5", \
                                 "-if", fifo_name, "-of", self.output_filename])
             mplayer_popen = subprocess.Popen(["mplayer", self.filename, \
-                                   "-vc", "null", "-vo", "null", \
-                                   "-ao", "pcm:fast:file=" + fifo_name, \
-                                   "-channels", "2", "-quiet"])
+                 "-really-quiet", "-vc", "null", "-vo", "null", \
+                 "-channels", "2", \
+                 "-ao", "pcm:fast:file=" + fifo_name])
             nero_popen.wait()
             os.remove(fifo_name)
-        elif self.encoder == "ffmpeg":
+        elif audio_encoder == "ffmpeg":
             print "%s: Transcoding audio using ffmpeg..." % timestamp()
             self.output_filename = re.sub('(\.[^\.]*)$', '.aac', self.filename)
             log("Calling ffmpeg to transcode audio")
@@ -260,6 +277,14 @@ class OutputFile:
                          "-add", video_track.output_filename, \
                          "-fps", video_track.fps, \
                          "-add", audio_track.output_filename])
+        
+        # If the output file is larger than 4GB, we need to split it or else
+        # the Xbox won't play it.
+        if (os.stat(self.filename)[ST_SIZE] > MAX_OUTPUT_FILE_SIZE * 1000):
+            subprocess.call(["MP4Box", \
+                            "-split-size", "%d" % MAX_OUTPUT_FILE_SIZE, \
+                            self.filename])
+            os.remove(self.filename)
         print "%s: Muxing complete." % timestamp()
 
 def main(argv):
@@ -267,23 +292,24 @@ def main(argv):
     global delete_temp_files
     global log_file_name
     global log_file
+    global audio_encoder
 
     input_file = ""
+    output_filename = ""
     target_device = "Xbox360"
     explicit_audio_encoder = False
     audio_encoder = "ffmpeg"
     delete_temp_files = True
-    output_log_file = False
 
     try:
         opts, args = getopt.getopt(argv, \
-                                   "a:d:hi:kl", \
+                                   "a:d:hi:ko:", \
                                    ["audio-encoder=", \
                                     "target-device=", \
                                     "help", \
                                     "input-file=", \
                                     "keep-temp-files", \
-                                    "output-logfile"])
+                                    "output-file="])
     except getopt.GetoptError:
         usage()
         sys.exit(2)
@@ -305,8 +331,8 @@ def main(argv):
             input_file = arg
         elif opt in ("-k", "--keep-temp-files"):
             delete_temp_files = False
-        elif opt in ("-l", "--output-logfile"):
-            output_log_file = True
+        elif opt in ("-o", "--output-file"):
+            output_filename = arg     
 
     if input_file == "":
         print "Error: no input file specified"
@@ -316,6 +342,15 @@ def main(argv):
         print "Error - mkv input expected"
         usage()
         sys.exit(2)
+
+    if output_filename != "":
+        if not (file_is_mp4_re.search(output_filename)):
+            print "Error - mp4 output expected"
+            usage()
+            sys.exit(2)
+    else:
+        output_filename = \
+                         "mkv2mp4_" + re.sub('(\.[^\.]*)$', '.mp4', input_file)
  
     # Create a log file.
     start_time = time.time()
@@ -348,17 +383,16 @@ def main(argv):
     mkv_file.get_info()
 
     # Extract the video and audio tracks.
-    video_track_name, video_track_fps, audio_track_name = \
-                                                      mkv_file.extract_tracks()
+    video_track_name, video_track_fps, audio_track_name, audio_type, \
+                          audio_channels = mkv_file.extract_tracks(output_filename)
 
     # Convert the video and audio tracks.
     video_track = VideoTrack(video_track_name, video_track_fps)
     converted_video_filename = video_track.convert()
-    audio_track = AudioTrack(audio_track_name, audio_encoder)
+    audio_track = AudioTrack(audio_track_name, audio_type, audio_channels)
     converted_audio_filename = audio_track.convert()
 
     # Mux the video and audio tracks.
-    output_filename = "mkv2mp4_" + re.sub('(\.[^\.]*)$', '.mp4', input_file)
     output_file = OutputFile(output_filename)
     output_file.create(video_track, audio_track)
 
@@ -366,14 +400,14 @@ def main(argv):
     video_track.cleanup()
     audio_track.cleanup()
     log_file.close()
-    if not output_log_file:
+    if delete_temp_files:
         os.remove(log_file_name)
     
     # All done.
-    print "\n%s: Conversion complete (took %s); output in:\n%s" % \
+    print "\n%s: Conversion complete (took %s)" % \
            (timestamp(), \
-            time.strftime("%M minutes and %S seconds", time.gmtime(time.time() - start_time)), \
-            output_filename)
+            time.strftime("%H hour(s), %M minute(s) and %S second(s)", time.gmtime(time.time() - start_time)))
+    print "Output at:\n%s" % output_filename
 
 def log(line):
     log_file.write(line + "\n")
@@ -384,7 +418,7 @@ def timestamp():
 
 def usage():
     print \
-"Usage: mkv2mp4.py [options] -i input_file\n" + \
+"Usage: mkv2mp4.py [options] -i <input_file>\n" + \
 "\n" + \
 "Options:\n" + \
 "  -a <encoder>, --audio-encoder=<encoder>\n" + \
@@ -397,8 +431,9 @@ def usage():
 "  -h, --help         Print this help text.\n" + \
 "  -k, --keep-temp-files\n" + \
 "                     Keep intermediate files (default is not to).\n" + \
-"  -l, --output-logfile\n" + \
-"                     Output a log file\n"
+"  -o, --output-file=<filename>\n" + \
+"                     Specify output file.  Temp files will be written to the\n" + \
+"                     same location.\n"
 
 if __name__ == '__main__':
      main(sys.argv[1:])
