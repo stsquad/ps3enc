@@ -122,7 +122,7 @@ class InputFile:
                           "currently supported."
                     sys.exit(2)
                 self.audio_track_num = track['num']
-                self.audio_type = AUDIO_CODECS[track['codec']]
+                self.audio_type = AUDIO_CODECS.get(track['codec'], 'audio')
                 self.audio_channels = track['channels']
             else:
                 print "Warning: ignoring '%s' track." % track['type']
@@ -343,14 +343,14 @@ def main(argv):
         usage()
         sys.exit(2)
 
-    if output_filename != "":
-        if not (file_is_mp4_re.search(output_filename)):
-            print "Error - mp4 output expected"
-            usage()
-            sys.exit(2)
-    else:
-        output_filename = \
-                         "mkv2mp4_" + re.sub('(\.[^\.]*)$', '.mp4', input_file)
+    if output_filename == "":
+        print "Error: no output file specified"
+        usage()
+        sys.exit(2)
+    if not (file_is_mp4_re.search(output_filename)):
+        print "Error - mp4 output expected"
+        usage()
+        sys.exit(2)
  
     # Create a log file.
     start_time = time.time()
@@ -361,19 +361,27 @@ def main(argv):
 
     # Check for the existence of the programs we'll need.
     log("Checking for mkvinfo:")
-    if (subprocess.call(["which", "mkvinfo"], stdout=log_file) != 0):
+    try:
+        subprocess.check_call(["mkvinfo", "--version"], stdout=log_file)
+    except:
         print "Error: mkvinfo not present."
         sys.exit(2)
     log("Checking for mkvextract:")
-    if (subprocess.call(["which", "mkvextract"], stdout=log_file) != 0):
+    try:
+        subprocess.check_call(["mkvextract", "--version"], stdout=log_file)
+    except:
         print "Error: mkvextract not present."
         sys.exit(2)
-    log("Checking for neroAacEnc:")
-    if (subprocess.call(["which", "neroAacEnc"], stdout=log_file) != 0):
-        print "Error: neroacCEnc not present."
+    log("Checking for ffmpeg:")
+    try:
+        subprocess.check_call(["ffmpeg", "-version"], stdout=log_file)
+    except:
+        print "Error: ffmpeg not present."
         sys.exit(2)
     log("Checking for MP4Box:")
-    if (subprocess.call(["which", "MP4Box"], stdout=log_file) != 0):
+    try:
+        subprocess.check_call(["MP4Box", "-version"], stdout=log_file)
+    except:
         print "Error: MP4Box not present."
         sys.exit(2)
     log("")
@@ -418,7 +426,9 @@ def timestamp():
 
 def usage():
     print \
-"Usage: mkv2mp4.py [options] -i <input_file>\n" + \
+"Displaying mkv2mp4 help.\n" + \
+"\n" + \
+"Usage: mkv2mp4.py [options] -i <input_file> -o <output_file>\n" + \
 "\n" + \
 "Options:\n" + \
 "  -a <encoder>, --audio-encoder=<encoder>\n" + \
@@ -430,10 +440,7 @@ def usage():
 "                       'Xbox360': Microsoft Xbox 360 [default]\n" + \
 "  -h, --help         Print this help text.\n" + \
 "  -k, --keep-temp-files\n" + \
-"                     Keep intermediate files (default is not to).\n" + \
-"  -o, --output-file=<filename>\n" + \
-"                     Specify output file.  Temp files will be written to the\n" + \
-"                     same location.\n"
+"                     Keep intermediate files (default is not to).\n"
 
 if __name__ == '__main__':
      main(sys.argv[1:])

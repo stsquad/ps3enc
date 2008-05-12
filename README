@@ -1,0 +1,67 @@
+mkv2mp4 README.
+
+Info:
+
+  mkv2mp4 is a commandline utility, written in Python, which allows conversion
+  of video files in the Matroska container (*.mkv file extension) containing
+  H.264 video to be converted into a format which the Xbox 360 can play.
+  
+  It differs from other similar tools in that no video transcoding is
+  performed; the video is passed through untouched and the just the audio is
+  transcoded if necessary.  This means that the conversion is much faster
+  (the whole process being quicker than realtime on reasonably modern
+  machines), and more importantly that there is no degradation in video quality
+  (which makes it very suitable for HD video).
+  
+  Due to the fact no video transcoding is performed, this tool is somewhat
+  restrictive in the input formats it supports.  Supported formats are:
+  - Container: Matroska.
+  - Video codec: H.264
+  - Audio codec: the app supports all audio codecs, however:
+    - ffmpeg's multichannel support currently isn't great, and therefore only
+      a subset of codecs with more than two channels will work.  5.1 AC3 and
+      5.1 DTS are known to work, 5.1 FLAC is known not to, others are untested.
+    - All stereo codecs which ffmpeg can decode should work.
+
+Supported OSes:
+
+  This app is intended to be portable, and all its dependencies are available
+  on Linux / OS X / Windows.  However it has only been tested on Linux, and as
+  such there may well be portability bugs on other platforms.
+  
+  Please feel free to report any such problems.
+
+Dependencies:
+
+  Python (tested on v2.5.x).
+
+  mkvinfo & mkvextract, both from mkvtoolnix (tested using v2.0.2).
+  http://www.bunkus.org/videotools/mkvtoolnix/
+
+  ffmpeg (tested on SVN-r13049).  This must be a version of ffmpeg compiled
+  with support for non-free formats (in particular ac3, DTS decoding, and  AAC
+  encoding).
+  http://ffmpeg.mplayerhq.hu/
+
+  MP4Box, from GPAC (tested on version 0.4.4 - earlier versions have a known
+  bug when working with large files).
+  http://gpac.sourceforge.net/
+
+Installation / Usage:
+
+  To install, copy mkv2mp4.py to a convenient location (eg. somewhere in your
+  path).
+
+  Typical usage is:
+  
+  "mkv2mp4 -i <input_file.mkv> -o <output_file.mp4>"
+
+  Additional options are available - type "mkv2mp4 --help" for details.
+
+License:
+
+  This program is released under the GPLv3.  See the COPYING file for details.
+
+  The details of the programs listed in the dependencies section, see their
+  respective websites.
+
