@@ -16,11 +16,8 @@
 # TODO (in no particular order):
 #
 # - Get ffmpeg fixed to handle multichannel ordering and downmixing :(
-# - Fixup selection of audio encoder, and dependency checking.
-# - Make cross-platform and test:
-#   - replace calls to 'which'
-#   - don't use fifos on Windows.
-# - Add README file.
+# - Test cross-platformness.
+# - Support MPEG-4 ASP / VC-1 mkvs (without video transcoding).
 
 import os, getopt, re, subprocess, sys, time
 from stat import *
@@ -230,22 +227,20 @@ class AudioTrack:
     # Currently converts to AAC using ffmpeg.
     def convert(self):
         if audio_encoder == "neroAacEnc":
-            print "%s: Transcoding audio using neroAacEnc..." % timestamp()
+            print "%s: Decoding audio using ffmpeg..." % timestamp()
+            temp_wav_filename = re.sub('(\.[^\.]*)$', '.wav', self.filename)
+            log("Calling ffmpeg to decode audio")
+            subprocess.call(["ffmpeg", \
+                             "-i", self.filename, \
+                             "-ac", "2", \
+                             temp_wav_filename])
+            print "%s: Audio decoding complete.\n" % timestamp()
+            print "%s: Encoding audio using neroAacEnc..." % timestamp()
             self.output_filename = re.sub('(\.[^\.]*)$', '.m4a', self.filename)
-            fifo_name = re.sub('(\.[^\.]*)$', '.wav', self.filename)
-            try:
-                os.mkfifo(fifo_name)
-            except:
-                pass
-            nero_popen = subprocess.Popen(["neroAacEnc", "-ignorelength", \
-                                "-lc", "-q", "0.5", \
-                                "-if", fifo_name, "-of", self.output_filename])
-            mplayer_popen = subprocess.Popen(["mplayer", self.filename, \
-                 "-really-quiet", "-vc", "null", "-vo", "null", \
-                 "-channels", "2", \
-                 "-ao", "pcm:fast:file=" + fifo_name])
-            nero_popen.wait()
-            os.remove(fifo_name)
+            subprocess.call(["neroAacEnc", "-lc", "-q", "0.5", \
+                             "-if", temp_wav_filename, "-of", self.output_filename])
+            if delete_temp_files:
+                os.remove(temp_wav_filename)
         elif audio_encoder == "ffmpeg":
             print "%s: Transcoding audio using ffmpeg..." % timestamp()
             self.output_filename = re.sub('(\.[^\.]*)$', '.aac', self.filename)
@@ -384,6 +379,12 @@ def main(argv):
     except:
         print "Error: MP4Box not present."
         sys.exit(2)
+    if audio_encoder == "neroAacEnc":
+        try:
+            subprocess.check_call(["neroAacEnc", "-help"], stdout=log_file)
+        except:
+            print "Error: neroAacEnc not present."
+            sys.exit(2)
     log("")
 
     # Get file info from the input mkv file.

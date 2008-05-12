@@ -31,7 +31,7 @@ Supported OSes:
   
   Please feel free to report any such problems.
 
-Dependencies:
+Mandatory dependencies:
 
   Python (tested on v2.5.x).
 
@@ -47,6 +47,14 @@ Dependencies:
   bug when working with large files).
   http://gpac.sourceforge.net/
 
+Optional dependencies:
+
+  neroAacEnc can optionally be used instead of libfaac for audio encoding
+  (tested using package built Aug 6 2007).  Note that ffmpeg is still required
+  for audio decoding.
+  This is (at the time of writing) available free of charge.
+  http://www.nero.com/ena/nero-aac-codec.html
+
 Installation / Usage:
 
   To install, copy mkv2mp4.py to a convenient location (eg. somewhere in your
@@ -58,10 +66,26 @@ Installation / Usage:
 
   Additional options are available - type "mkv2mp4 --help" for details.
 
+Technical details:
+
+  This application makes the following alterations to the file:
+  - Extract tracks from mkv input (uses mkvinfo & mkvextract)
+  - Edit H.264 video stream to have level 4.1 or less (this is just a change
+    to the file header - no transcoding).  This is because the Xbox 360 doesn't
+    play files with a higher level.
+  - Transcode audio to stereo AAC (unfortunately the Xbox 360 doesn't support
+    any 5.1 audio codecs in mp4) (using ffmpeg for decoding and encoding (with
+    libfaac), or ffmpeg for decoding and neroAacEnc for encoding.
+  - Drop any tracks other than the first video and audio tracks (the Xbox 360
+    doesn't support multiple video or audio tracks, and doesn't support
+    subtitles in mp4).
+  - Remux into an mp4 container.  Files are split such that they are smaller
+    than 4GB (again... a restriction for the Xbox 360).
+
 License:
 
   This program is released under the GPLv3.  See the COPYING file for details.
 
-  The details of the programs listed in the dependencies section, see their
-  respective websites.
+  For license details of the programs listed in the dependencies sections, see
+  their respective websites.
 
