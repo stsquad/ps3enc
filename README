@@ -14,7 +14,10 @@ Info:
   (which makes it very suitable for HD video).
   
   Due to the fact no video transcoding is performed, this tool is somewhat
-  restrictive in the input formats it supports.  Supported formats are:
+  restrictive in the input formats it supports.  Supported formats are the
+  the following - the intention being that this should work on (at least) files
+  conforming to the x264 HD scene rules - FLAC multichannel audio is the only
+  exception currently.
   - Container: Matroska.
   - Video codec: H.264
   - Audio codec: the app supports all audio codecs, however:

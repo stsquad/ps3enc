@@ -357,31 +357,31 @@ def main(argv):
     # Check for the existence of the programs we'll need.
     log("Checking for mkvinfo:")
     try:
-        subprocess.check_call(["mkvinfo", "--version"], stdout=log_file)
+        subprocess.check_call(["mkvinfo", "--version"], stderr=log_file, stdout=log_file)
     except:
         print "Error: mkvinfo not present."
         sys.exit(2)
     log("Checking for mkvextract:")
     try:
-        subprocess.check_call(["mkvextract", "--version"], stdout=log_file)
+        subprocess.check_call(["mkvextract", "--version"], stderr=log_file, stdout=log_file)
     except:
         print "Error: mkvextract not present."
         sys.exit(2)
     log("Checking for ffmpeg:")
     try:
-        subprocess.check_call(["ffmpeg", "-version"], stdout=log_file)
+        subprocess.check_call(["ffmpeg", "-version"], stderr=log_file, stdout=log_file)
     except:
         print "Error: ffmpeg not present."
         sys.exit(2)
     log("Checking for MP4Box:")
     try:
-        subprocess.check_call(["MP4Box", "-version"], stdout=log_file)
+        subprocess.check_call(["MP4Box", "-version"], stderr=log_file, stdout=log_file)
     except:
         print "Error: MP4Box not present."
         sys.exit(2)
     if audio_encoder == "neroAacEnc":
         try:
-            subprocess.check_call(["neroAacEnc", "-help"], stdout=log_file)
+            subprocess.check_call(["neroAacEnc", "-help"], stderr=log_file, stdout=log_file)
         except:
             print "Error: neroAacEnc not present."
             sys.exit(2)
