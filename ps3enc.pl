@@ -58,7 +58,7 @@ GetOptions (
 
 if ( defined $help ) { &usage; }
 
-my ($source) = @_;
+my ($source) = @ARGV;
 die "Can't see $source" if ! -f $source;
 
 die "Can't see mplayer binary @ $mplayer_bin\n" if -f $mplayer_bin;
