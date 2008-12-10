@@ -85,3 +85,28 @@ unless (defined $test)
     }
     close CD;
 }
+
+
+exit 0;
+
+####################
+# Subroutines
+####################
+
+# Print usage information
+sub usage {
+    print STDERR <<EOF;
+Usage: $me [options] <vob file>
+
+    options
+	-h, --help  display usage information
+
+	-m, --mplayer=/path/to/mplayer
+
+    encode parameter
+        -p, --passes number of passes
+        -c, --crop   crop operations
+
+EOF
+    exit 1;
+}
