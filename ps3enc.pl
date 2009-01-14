@@ -38,6 +38,7 @@ my $output;
 my $test;
 
 my $mplayer_bin="/usr/bin/mplayer";
+my $mencoder_bin="/usr/bin/mencoder";
 
 # Get all appropraite options
 GetOptions (
@@ -67,25 +68,28 @@ die "Can't see mplayer binary @ $mplayer_bin\n" if ! -f $mplayer_bin;
 # First thing we need to do is crop detect
 #
 print "Running crop detection phase\n" unless $quiet;
-my $pos = "-ss 20:00 -endpos 20:10";
-my $cmd = "$mplayer_bin ".$pos." -vf cropdetect ".$source;
+my $pos = "-ss 20:00 -frames 10";
+my $cmd = "$mplayer_bin -nosound -vo null ".$pos." -vf cropdetect ".$source;
 
 print "  cmd=$cmd\n" if $verbose;
 
 unless (defined $test)
 {
-    open (CD, "$cmd |");
+    open (CD, "$cmd 2> /dev/null |");
     while (<CD>)
     {
+	chomp;
 	my $line = $_;
-	if ($line =~ m#-vf crop#)
+	print "    mplayer: $line\n" if $verbose;
+	if ($line =~ m#vf crop#)
 	{
-    
+	    ($crop_opts) = $line =~ m/(-vf crop=[0123456789:]+)/; 
 	}
     }
     close CD;
 }
 
+print "  crop_opts = $crop_opts\n" unless $quiet;
 
 exit 0;
 
