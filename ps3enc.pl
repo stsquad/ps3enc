@@ -61,7 +61,7 @@ if ( defined $help ) { &usage; }
 my ($source) = @ARGV;
 die "Can't see $source" if ! -f $source;
 
-die "Can't see mplayer binary @ $mplayer_bin\n" if -f $mplayer_bin;
+die "Can't see mplayer binary @ $mplayer_bin\n" if ! -f $mplayer_bin;
 
 #
 # First thing we need to do is crop detect
