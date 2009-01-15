@@ -22,7 +22,7 @@ use Getopt::Long;
 my ($help, $verbose, $quiet);
 
 # This is for -ovc x264, break it down later
-my $x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=auto:nopsnr:nossim:frameref=3:mixed_refs:bime:brdo:level_idc=41:direct_pred=auto:trellis=1";
+my $x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=auto:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1";
 #pass=1:bitrate=$3:
 
 my $ovc="x264";
@@ -73,23 +73,47 @@ my $cmd = "$mplayer_bin -nosound -vo null ".$pos." -vf cropdetect ".$source;
 
 print "  cmd=$cmd\n" if $verbose;
 
-unless (defined $test)
+open (CD, "$cmd 2> /dev/null |");
+while (<CD>)
 {
-    open (CD, "$cmd 2> /dev/null |");
-    while (<CD>)
+    chomp;
+    my $line = $_;
+    print "    mplayer: $line\n" if $verbose;
+    if ($line =~ m#vf crop#)
     {
-	chomp;
-	my $line = $_;
-	print "    mplayer: $line\n" if $verbose;
-	if ($line =~ m#vf crop#)
-	{
-	    ($crop_opts) = $line =~ m/(-vf crop=[0123456789:]+)/; 
-	}
+	($crop_opts) = $line =~ m/(-vf crop=[0123456789:]+)/; 
     }
-    close CD;
 }
+close CD;
 
 print "  crop_opts = $crop_opts\n" unless $quiet;
+
+#
+# Run the mencoder phase
+#
+my $avi_file = $source;
+$avi_file =~ s/\.vob/\.avi/;
+
+# If we are doing a multipass encode we do first stage specially
+my $pass_opt = "pass=1";
+if ($passes > 1)
+{
+    my $pass1_cmd = "$mencoder_bin $source -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
+    print "Running: $pass1_cmd\n" unless $quiet;
+    system($pass1_cmd) unless $test;
+
+    # Set passes for next run
+    $passes--;
+    $pass_opt="pass=3";
+}
+
+while ($passes>0)
+{
+    my $men_cmd = "$mencoder_bin $source -ovc $ovc -oac $oac $crop_opts $x264_encode_opts:bitrate=$bitrate:$pass_opt -o $avi_file";
+    print "Running: $men_cmd\n" unless $quiet;
+    system($men_cmd) unless $test;
+    $passes--;
+}
 
 exit 0;
 
