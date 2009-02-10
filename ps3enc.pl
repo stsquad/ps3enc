@@ -165,7 +165,7 @@ print "Running: $mp4_cmd\n" unless $quiet;
 system($mp4_cmd);
 rename("$name"."_audio.raw", "$name"."_audio.aac");
 
-$mp4_cmd = "$mp4box_bin -add $name"."_audio.aac --add $name"."_video.h264 $name.mp4";
+$mp4_cmd = "$mp4box_bin -add $name"."_audio.aac -add $name"."_video.h264 $name.mp4";
 print "Running: $mp4_cmd\n" unless $quiet;
 system($mp4_cmd);
 
