@@ -33,6 +33,7 @@ my $oac="faac";
 my $bitrate=2000;
 my $passes=2;
 my $crop_opts;
+my $no_crop;
 
 # Files
 my $source;
@@ -62,6 +63,7 @@ GetOptions (
     # Encode Params
     'p|passes=i' => \$passes,
     'c|crop=s'   => \$crop_opts,
+    'nc|nocrop'  => \$no_crop,
 
     # Output file
     'o|output=s' => \$name,
@@ -80,6 +82,11 @@ die "Can't see $source" if ! -f $source;
 if (!defined $name)
 {
     ($name, $path, $ext) = fileparse($source,  qr/\.[^.]*/);
+}
+
+if (defined $no_crop)
+{
+    $crop_opts=" ";
 }
 
 
