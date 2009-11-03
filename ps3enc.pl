@@ -64,6 +64,7 @@ GetOptions (
     'p|passes=i' => \$passes,
     'c|crop=s'   => \$crop_opts,
     'nc|nocrop'  => \$no_crop,
+    'b|bitrate=s'=> \$bitrate,
 
     # Output file
     'o|output=s' => \$name,
@@ -134,7 +135,7 @@ else
     my $pass_opt = "pass=1";
     if ($passes > 1)
     {
-	my $pass1_cmd = "$mencoder_bin $source -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
+	my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
 	print "Running: $pass1_cmd\n" unless $quiet;
 	system($pass1_cmd) unless $test;
 
@@ -145,7 +146,7 @@ else
 
     while ($passes>0)
     {
-	my $men_cmd = "$mencoder_bin $source -ovc $ovc -oac $oac $crop_opts $x264_encode_opts:bitrate=$bitrate:$pass_opt -o $avi_file";
+	my $men_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac $oac $crop_opts $x264_encode_opts:bitrate=$bitrate:$pass_opt -o $avi_file";
 	print "Running: $men_cmd\n" unless $quiet;
 	system($men_cmd) unless $test;
 	$passes--;
