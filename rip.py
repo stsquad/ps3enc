@@ -12,7 +12,7 @@ import getopt
 verbose=0
 episodes=0
 ripdir=os.getenv("HOME")+"/tmp"
-base=0
+base=1
 
 # Start of code
 if __name__ == "__main__":
@@ -68,6 +68,10 @@ if __name__ == "__main__":
                 
             # Now we have ripped the file spawn ps3enc.pl to deal with it
             enc_cmd="nice ps3enc.pl "+dump_file+" &"
+            if verbose>0:
+                print "cmd: %s" % (enc_cmd)
             os.system(enc_cmd)
-            
+
+            # Next "track"
+            base=base+1
             
