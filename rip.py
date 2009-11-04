@@ -75,3 +75,5 @@ if __name__ == "__main__":
             # Next "track"
             base=base+1
             
+    # Eject the DVD
+    os.system("cdrecord --eject")
