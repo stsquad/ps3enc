@@ -177,6 +177,10 @@ $mp4_cmd = "$mp4box_bin -add $name"."_audio.aac -add $name"."_video.h264 $name.m
 print "Running: $mp4_cmd\n" unless $quiet;
 system($mp4_cmd);
 
+# Cleanup
+unlink $avi_file;
+unlink $name."_audio.aac";
+unlink $name."_video.h264";
 
 exit 0;
 
