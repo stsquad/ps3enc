@@ -43,6 +43,7 @@ my $output;
 # Control parameters
 my $test;
 my $skip_encode;
+my $cleanup;
 
 my $mplayer_bin=`which mplayer`;
 my $mencoder_bin=`which mencoder`;
@@ -70,6 +71,7 @@ GetOptions (
     'o|output=s' => \$name,
     
     # Tweaks
+    'cleanup'    => \$cleanup,
     't|test'     => \$test,
     's|skip'     => \$skip_encode,
     );
@@ -151,6 +153,8 @@ else
 	system($men_cmd) unless $test;
 	$passes--;
     }
+
+    unlink $source if (defined $cleanup && !$test)
 }
 
 #
