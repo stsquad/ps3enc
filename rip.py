@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     for o,a in opts:
         if o in ("-b", "--base"):
-            base=a
+            base=int(a)
         if o in ("-e", "--episodes"):
             episodes=a
         if o in ("-d", "--dir"):
@@ -59,7 +59,7 @@ if __name__ == "__main__":
         if t['length']>=long_enough:
             print "Ripping: %s" % (t)
             dump_file=dvdinfo['title']+"ep"+str(base)+".vob"
-            rip_cmd="mplayer dvd://"+str(t['ix'])+" -dumpstream -dumpfile "+dump_file
+            rip_cmd="mplayer dvd://"+str(t['ix'])+" -dumpstream -dumpfile "+dump_file+" > /dev/null 2>&1"
             if verbose>0:
                 print "cmd: %s" % (rip_cmd)
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             os.system(rip_cmd)
                 
             # Now we have ripped the file spawn ps3enc.pl to deal with it
-            enc_cmd="nice ps3enc.pl "+dump_file+" &"
+            enc_cmd="nice ps3enc.pl -p 1 "+dump_file+" > /dev/null 2>&1 &"
             if verbose>0:
                 print "cmd: %s" % (enc_cmd)
             os.system(enc_cmd)
