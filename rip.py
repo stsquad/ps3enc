@@ -10,14 +10,44 @@ import sys
 import getopt
 
 verbose=0
+log=None
+encode="list"
 episodes=0
 ripdir=os.getenv("HOME")+"/tmp"
 base=1
 
+
+def process_track(ep, title, track):
+    print "Ripping: %s" % (track)
+
+    dump_dir=ripdir+"/"+title+"-"+str(ep)
+    if not os.path.isdir(dump_dir):
+        os.mkdir(dump_dir)
+
+    os.chdir(dump_dir)
+    
+    dump_file=dump_dir+"/dump.vob"
+    rip_cmd="mplayer dvd://"+str(t['ix'])+" -dumpstream -dumpfile "+dump_file+" > /dev/null 2>&1"
+    if verbose>0:
+        print "cmd: %s" % (rip_cmd)
+        os.system(rip_cmd)
+
+
+    if log:
+        log.write(dump_file+"\n");
+        log.flush()
+    else:
+        # Now we have ripped the file spawn ps3enc.pl to deal with it
+        enc_cmd="nice ps3enc.pl "+dump_file+" > /dev/null 2>&1 &"
+        if verbose>0:
+            print "cmd: %s" % (enc_cmd)
+            os.system(enc_cmd)
+    
+
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "b:e:d:v", ["episodes=", "dir=","verbose"])
+        opts, args = getopt.getopt(sys.argv[1:], "b:e:d:vl:m:", ["episodes=", "dir=","verbose", "log=", "max="])
     except getopt.GetoptError, err:
         usage()
 
@@ -30,50 +60,42 @@ if __name__ == "__main__":
             ripdir=a
         if o in ("-v", "--verbose"):
             verbose=1
+        if o in ("-l", "--log"):
+            log=open(a, "w", 1)
+            
+        if o in ("-m", "--max"):
+            max=float(a)*60
+
+    # Are we logging
+
 
     # First things first scan the DVD
     info=os.popen("lsdvd -Oy", "r").read()
     dvdinfo=eval(info[8:])
     tracks=dvdinfo['track']
+    rip_tracks=[]
 
-    # Guess how many episodes if not told
-    lt=dvdinfo['longest_track']
-    long_enough=tracks[lt-1]['length']*0.80
-    if episodes==0:
+    # Define our max criteria
+    if max==None:
+        lt=dvdinfo['longest_track']
+        max=tracks[lt-1]['length']
+
+    min=max*0.80
+
+    print "Looking for episodes between %f and %f seconds" % (max, min)
+
+    for t in tracks:
+        length=t['length']
         if verbose>0:
-            print "long_enough=%d" % (long_enough)
-        shortest_track=long_enough
-        for t in tracks:
-            length=t['length']
-            if length>long_enough:
-                episodes=episodes+1
-    else:
-        # define long_enough by finding the n'th longest episode
-        print "Hmmm"
-        sys.exit(1)
+            print "Track: %s" % t
+        if length>min and length<=max:
+            rip_tracks.append(t)
 
     print "Ripping %d episodes" % (episodes)
-    os.chdir(ripdir)
     
-    for t in tracks:
-        if t['length']>=long_enough:
-            print "Ripping: %s" % (t)
-            dump_file=dvdinfo['title']+"ep"+str(base)+".vob"
-            rip_cmd="mplayer dvd://"+str(t['ix'])+" -dumpstream -dumpfile "+dump_file+" > /dev/null 2>&1"
-            if verbose>0:
-                print "cmd: %s" % (rip_cmd)
-
-            # Do the rip syncronusly
-            os.system(rip_cmd)
-                
-            # Now we have ripped the file spawn ps3enc.pl to deal with it
-            enc_cmd="nice ps3enc.pl -p 1 "+dump_file+" > /dev/null 2>&1 &"
-            if verbose>0:
-                print "cmd: %s" % (enc_cmd)
-            os.system(enc_cmd)
-
-            # Next "track"
-            base=base+1
+    for t in rip_tracks:
+        process_track(base, dvdinfo['title'], t)
+        base=base+1
             
     # Eject the DVD
     os.system("cdrecord --eject")
