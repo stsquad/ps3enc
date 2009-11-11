@@ -20,13 +20,15 @@ base=1
 def process_track(ep, title, track):
     print "Ripping: %s" % (track)
 
-    dump_dir=ripdir+"/"+title+"-"+str(ep)
+    name=title+"-"+str(ep)
+
+    dump_dir=ripdir+"/"+name
     if not os.path.isdir(dump_dir):
         os.mkdir(dump_dir)
 
     os.chdir(dump_dir)
     
-    dump_file=dump_dir+"/dump.vob"
+    dump_file=dump_dir+"/"+name+".vob"
     rip_cmd="mplayer dvd://"+str(t['ix'])+" -dumpstream -dumpfile "+dump_file+" > /dev/null 2>&1"
     if verbose>0:
         print "cmd: %s" % (rip_cmd)
