@@ -85,6 +85,7 @@ die "Can't see $source" if ! -f $source;
 if (!defined $name)
 {
     ($name, $path, $ext) = fileparse($source,  qr/\.[^.]*/);
+    chdir $path;
 }
 
 if (defined $no_crop)
