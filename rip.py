@@ -93,7 +93,7 @@ if __name__ == "__main__":
         if length>min and length<=max:
             rip_tracks.append(t)
 
-    print "Ripping %d episodes" % (episodes)
+    print "Ripping %d episodes" % (len(rip_tracks))
     
     for t in rip_tracks:
         process_track(base, dvdinfo['title'], t)
