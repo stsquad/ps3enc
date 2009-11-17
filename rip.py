@@ -49,9 +49,11 @@ def process_track(ep, title, track):
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "b:e:d:vl:m:", ["episodes=", "dir=","verbose", "log=", "max="])
+        opts, args = getopt.getopt(sys.argv[1:], "b:e:d:vlm:", ["episodes=", "dir=","verbose", "log=", "max="])
     except getopt.GetoptError, err:
         usage()
+
+    create_log=None
 
     for o,a in opts:
         if o in ("-b", "--base"):
@@ -63,19 +65,20 @@ if __name__ == "__main__":
         if o in ("-v", "--verbose"):
             verbose=1
         if o in ("-l", "--log"):
-            log=open(a, "w", 1)
+            if a:
+                log=open(a, "w", 1)
+            else:
+                create_log=1
+
             
         if o in ("-m", "--max"):
             max=float(a)*60
-
-    # Are we logging
-
 
     # First things first scan the DVD
     info=os.popen("lsdvd -Oy", "r").read()
     dvdinfo=eval(info[8:])
     tracks=dvdinfo['track']
-    rip_tracks=[]
+    rip_tracks=[]  
 
     # Define our max criteria
     if max==None:
@@ -94,6 +97,14 @@ if __name__ == "__main__":
             rip_tracks.append(t)
 
     print "Ripping %d episodes" % (len(rip_tracks))
+
+    # If we haven't specified a log name then make one up
+    if create_log:
+        ep_start=str(base)
+        ep_end=str(base+len(rip_tracks)-1)
+        log_name=os.getenv("HOME")+"/tmp/"+dvdinfo['title']+"-e"+ep_start+"-"+ep_end
+        log=open(log_name, "w", 1)
+
     
     for t in rip_tracks:
         process_track(base, dvdinfo['title'], t)
