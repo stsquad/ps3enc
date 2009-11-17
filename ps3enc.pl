@@ -155,7 +155,12 @@ else
 	$passes--;
     }
 
-    unlink $source if (defined $cleanup && !$test)
+
+    # Delete the VOB if we succeded
+    if (-f $avi_file && defined $cleanup)
+    {
+	unlink $source;
+    }
 }
 
 #
