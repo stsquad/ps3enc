@@ -102,7 +102,7 @@ if __name__ == "__main__":
     if create_log:
         ep_start=str(base)
         ep_end=str(base+len(rip_tracks)-1)
-        log_name=os.getenv("HOME")+"/tmp/"+dvdinfo['title']+"-e"+ep_start+"-"+ep_end
+        log_name=os.getenv("HOME")+"/tmp/"+dvdinfo['title']+"-e"+ep_start+"-"+ep_end+".log"
         log=open(log_name, "w", 1)
 
     
