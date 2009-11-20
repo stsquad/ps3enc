@@ -14,6 +14,7 @@ use strict;
 
 #Use Time::localtime;
 use File::Basename;
+use File::Spec;
 use Getopt::Long;
 
 (my $me = $0) =~ s|.*/(.*)|$1|;
@@ -79,6 +80,13 @@ GetOptions (
 if ( defined $help ) { &usage; }
 
 ($source) = @ARGV;
+
+# Attempt to munge a relative path
+if (!File::Spec->file_name_is_absolute($source))
+{
+    $source = File::Spec->rel2abs($source);
+}
+
 die "Can't see $source" if ! -f $source;
 
 # If we haven't defined an output file make it from the input file
