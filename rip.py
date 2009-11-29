@@ -111,4 +111,9 @@ if __name__ == "__main__":
         base=base+1
             
     # Eject the DVD
+    dev=dvdinfo['device']
+    real_dev=os.readlink(dev)
+    final_dev=os.path.join(os.path.dirname(dev), real_dev)
+    print "DVD on %s?" % (final_dev)
+    os.system("umount "+final_dev)
     os.system("cdrecord --eject")
