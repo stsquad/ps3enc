@@ -15,7 +15,7 @@ encode="list"
 episodes=0
 ripdir=os.getenv("HOME")+"/tmp"
 base=1
-
+maxl=None
 
 def process_track(ep, title, track):
     print "Ripping: %s" % (track)
@@ -69,10 +69,8 @@ if __name__ == "__main__":
                 log=open(a, "w", 1)
             else:
                 create_log=1
-
-            
         if o in ("-m", "--max"):
-            max=float(a)*60
+            maxl=float(a)*60
 
     # First things first scan the DVD
     info=os.popen("lsdvd -Oy", "r").read()
@@ -81,19 +79,22 @@ if __name__ == "__main__":
     rip_tracks=[]  
 
     # Define our max criteria
-    if max==None:
+    if maxl==None:
         lt=dvdinfo['longest_track']
-        max=tracks[lt-1]['length']
+        maxl=float(tracks[lt-1]['length'])
+        if verbose>0:
+            print "Longest track was no: "+str(lt)+" @ "+str(maxl)
 
-    min=max*0.80
+        
+    minl=maxl*float(0.80)
 
-    print "Looking for episodes between %f and %f seconds" % (max, min)
+    print "Looking for episodes between %f and %f seconds" % (maxl, minl)
 
     for t in tracks:
         length=t['length']
         if verbose>0:
             print "Track: %s" % t
-        if length>min and length<=max:
+        if length>minl and length<=maxl:
             rip_tracks.append(t)
 
     print "Ripping %d episodes" % (len(rip_tracks))
