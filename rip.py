@@ -44,18 +44,34 @@ def process_track(ep, title, track):
         if verbose>0:
             print "cmd: %s" % (enc_cmd)
             os.system(enc_cmd)
-    
+
+def usage():
+    print """
+    -h/--help         : this message
+    -verbose          : verbose
+    -b/--base=n       : start of numbering
+    -e/--episodes=<n> : number of episodes
+    -d/--dir=<path>   : overide default dest dir ("""+ripdir+""")
+    -l/--log=<path>   : don't encode just log, default based on dvd name
+    -m                : max length of episode (in minutes)
+
+    """
+    return
 
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "b:e:d:vlm:", ["episodes=", "dir=","verbose", "log=", "max="])
+        opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:", ["help", "episodes=", "dir=","verbose", "log=", "max="])
     except getopt.GetoptError, err:
         usage()
+        exit
 
     create_log=None
 
     for o,a in opts:
+        if o in ("-h", "--help"):
+            usage()
+            exit
         if o in ("-b", "--base"):
             base=int(a)
         if o in ("-e", "--episodes"):
