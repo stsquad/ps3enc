@@ -20,6 +20,12 @@ import re
 
 verbose=0
 x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1"
+bitrate=2000
+no_crop=False
+
+# What codecs?
+ovc="x264";
+oac="faac";
 
 
 mplayer_bin="/usr/bin/mplayer"
@@ -27,6 +33,7 @@ mencoder_bin="/usr/bin/mencoder"
 
 me=os.path.basename(sys.argv[0])
 passes=3
+skip_encode=False
 
 def guess_best_crop(file):
     """
@@ -63,26 +70,55 @@ def guess_best_crop(file):
 
     return crop_to_use
 
-def do_turbo_pass(file):
+def do_turbo_pass(src_file, dst_file, crop):
     """
     Do a fast turbo pass encode of the file
     """
-    
+#    	my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
+    turbo_cmd = mencoder_bin+" "+src_file+" -ovc "+ovc+" -oac copy "+crop+" "+x264_encode_opts+":bitrate="+str(bitrate)+":pass=1:turbo=1 -o "+dst_file
+    print "turbo_cmd:"+turbo_cmd
+    if skip_encode and os.path.exists(dst_file):
+        print "Skipping generation of: "+dst_file
+    else:
+        p = subprocess.Popen(turbo_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+        (out, err) = p.communicate()
+
+    return dst_file
+
+def do_encoding_pass(src_file, dst_file, crop, epass=1):
+    """
+    Normal multi-stage encoding pass
+    """
+    encode_cmd = mencoder_bin+" "+src_file+" -ovc "+ovc+" -oac "+oac+" "+crop+" "+x264_encode_opts+":bitrate="+str(bitrate)+":pass="+str(epass)+" -o "+dst_file
+    print "encode_cmd:"+encode_cmd
+    if skip_encode and os.path.exists(dst_file):
+        print "Skipping generation of: "+dst_file
+    else:
+        p = subprocess.Popen(encode_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+        (out, err) = p.communicate()
+        
+
+    return dst_file
 
 
 def process_input(file):
     if verbose:
         print "Handling: "+a
 
-    crop = guess_best_crop(file)
+    if no_crop:
+        crop = ""
+    else:
+        crop = guess_best_crop(file)
 
     if passes>1:
-        do_turbo_pass(file)
+        do_turbo_pass(file, file+".TURBO.AVI", crop)
         for i in range(2, passes):
-            do_encoding_pass(file)
+            ff = do_encoding_pass(file, file+".PASS"+str(i)+".AVI", crop, 3)
     else:
-        do_encoding_pass(file)
-    
+        ff = do_encoding_pass(file, file+".SINGLEPASS.AVI", crop)
+
+
+    print "Final file is:"+ff
 
         
     
@@ -94,6 +130,8 @@ def usage():
     print "  " + me + " [options] filename"
     print "  -h, --help:   Display usage test"
     print "  -v, -verbose: Be verbose in output"
+    print "  -n, --no-crop: Don't try and crop"
+    print "  -s, --skip-encode: Skip steps if file present"
     print ""
     print "This script is a fairly dump wrapper to mencoder to encode files"
     print "that are compatibile with the PS3 system media playback software"
@@ -101,7 +139,7 @@ def usage():
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hv", ["help", "verbose"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvns", ["help", "verbose", "no-crop", "skipp-encode"])
     except getopt.GetoptError, err:
         usage()
 
@@ -113,6 +151,10 @@ if __name__ == "__main__":
             exit
         if o in ("-v", "--verbose"):
             verbose=1
+        if o in ("-n", "--no-crop"):
+            no_crop=True
+        if o in ("-s", "--skip-encode"):
+            skip_encode=True
 
     for a in args:
         process_input(os.path.abspath(a))
