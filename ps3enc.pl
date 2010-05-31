@@ -23,7 +23,7 @@ use Getopt::Long;
 my ($help, $verbose, $quiet);
 
 # This is for -ovc x264, break it down later
-my $x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=auto:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1";
+my $x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1";
 #pass=1:bitrate=$3:
 
 my $ovc="x264";
@@ -45,6 +45,7 @@ my $output;
 my $test;
 my $skip_encode;
 my $cleanup;
+my $keep;
 
 my $mplayer_bin=`which mplayer`;
 my $mencoder_bin=`which mencoder`;
@@ -73,6 +74,7 @@ GetOptions (
     
     # Tweaks
     'cleanup'    => \$cleanup,
+    'keep'       => \$keep,
     't|test'     => \$test,
     's|skip'     => \$skip_encode,
     );
@@ -148,7 +150,11 @@ else
     {
 	my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
 	print "Running: $pass1_cmd\n" unless $quiet;
-	system($pass1_cmd) unless $test;
+	if (!defined $test) {
+	    print "Doing it\n";
+	    system($pass1_cmd)==0 or 
+		die "$pass1_cmd failed! ($?)";
+	};
 
 	# Set passes for next run
 	$passes--;
@@ -159,7 +165,10 @@ else
     {
 	my $men_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac $oac $crop_opts $x264_encode_opts:bitrate=$bitrate:$pass_opt -o $avi_file";
 	print "Running: $men_cmd\n" unless $quiet;
-	system($men_cmd) unless $test;
+	if (!defined $test) {
+	    system($men_cmd)==0 or 
+		die "$men_cmd failed! ($?)";
+	};
 	$passes--;
     }
 
@@ -196,9 +205,11 @@ print "Running: $mp4_cmd\n" unless $quiet;
 system($mp4_cmd);
 
 # Cleanup
-unlink $avi_file;
-unlink $name."_audio.aac";
-unlink $name."_video.h264";
+unless ($keep) {
+    unlink $avi_file;
+    unlink $name."_audio.aac";
+    unlink $name."_video.h264";
+}
 
 exit 0;
 
@@ -213,7 +224,7 @@ Usage: $me [options] <vob file>
 
     options
 	-h, --help  display usage information
-
+	--keep      keep temp files
 	-m, --mplayer=/path/to/mplayer
 
     encode parameter
