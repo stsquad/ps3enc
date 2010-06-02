@@ -30,10 +30,13 @@ oac="faac";
 
 mplayer_bin="/usr/bin/mplayer"
 mencoder_bin="/usr/bin/mencoder"
+mp4box_bin="/usr/bin/MP4Box"
 
 me=os.path.basename(sys.argv[0])
 passes=3
 skip_encode=False
+
+temp_files = []
 
 def guess_best_crop(file):
     """
@@ -41,8 +44,9 @@ def guess_best_crop(file):
     """
     size = os.path.getsize(file)
     potential_crops = {}
-    for i in range(0, size-size/10, size/10):
+    for i in range(0, size-size/20, size/20):
         crop_cmd = mplayer_bin+" -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect "+file
+#        crop_cmd = mplayer_bin+" -nosound -sb "+str(i)+" -frames 10 -vf cropdetect "+file
         if verbose:
             print "Running: "+crop_cmd
         try:
@@ -83,6 +87,7 @@ def do_turbo_pass(src_file, dst_file, crop):
         p = subprocess.Popen(turbo_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
         (out, err) = p.communicate()
 
+    temp_files.append(dst_file)
     return dst_file
 
 def do_encoding_pass(src_file, dst_file, crop, epass=1):
@@ -98,7 +103,41 @@ def do_encoding_pass(src_file, dst_file, crop, epass=1):
         (out, err) = p.communicate()
         
 
+    temp_files.append(dst_file)
     return dst_file
+
+
+def package_mp4(src_file):
+    """
+    Package a given AVI file into clean MP4
+    """
+    (dir, file) = os.path.split(src_file)
+    (base, extension) = os.path.splitext(file)
+
+    # Get video
+    mp4_video_cmd = mp4box_bin+" -aviraw video "+src_file;
+    if verbose:
+        print "Running: "+mp4_video_cmd
+    p = subprocess.Popen(mp4_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+    (out, err) = p.communicate()
+
+    # Get Audio
+    mp4_audio_cmd = mp4box_bin+" -aviraw audio "+src_file;
+    if verbose:
+        print "Running: "+mp4_audio_cmd
+    p = subprocess.Popen(mp4_audio_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+    (out, err) = p.communicate()
+    os.rename(base+"_audio.raw", base+"_audio.aac");
+
+    # Join the two together
+    mp4_join_cmd = mp4box_bin+" -add "+base+"_audio.aac -add "+base+"_video.h264 "+base+".mp4"
+    if verbose:
+        print "Running: "+mp4_join_cmd
+    p = subprocess.Popen(mp4_join_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+    (out, err) = p.communicate()
+
+    return
+
 
 
 def process_input(file):
@@ -112,7 +151,7 @@ def process_input(file):
 
     if passes>1:
         do_turbo_pass(file, file+".TURBO.AVI", crop)
-        for i in range(2, passes):
+        for i in range(2, passes+1):
             ff = do_encoding_pass(file, file+".PASS"+str(i)+".AVI", crop, 3)
     else:
         ff = do_encoding_pass(file, file+".SINGLEPASS.AVI", crop)
@@ -120,6 +159,7 @@ def process_input(file):
 
     print "Final file is:"+ff
 
+    package_mp4(ff)
         
     
     
@@ -139,7 +179,7 @@ def usage():
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvns", ["help", "verbose", "no-crop", "skipp-encode"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvns", ["help", "verbose", "no-crop", "skip-encode"])
     except getopt.GetoptError, err:
         usage()
 
