@@ -121,6 +121,8 @@ def package_mp4(src_file):
     p = subprocess.Popen(mp4_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
 
+    video_file = src_file+"_video.h264"
+
     # Get Audio
     mp4_audio_cmd = mp4box_bin+" -aviraw audio "+src_file;
     if verbose:
@@ -129,12 +131,17 @@ def package_mp4(src_file):
     (out, err) = p.communicate()
     os.rename(base+"_audio.raw", base+"_audio.aac");
 
+    audio_file = src_file+"_audio.aac"
+
     # Join the two together
     mp4_join_cmd = mp4box_bin+" -add "+base+"_audio.aac -add "+base+"_video.h264 "+base+".mp4"
     if verbose:
         print "Running: "+mp4_join_cmd
     p = subprocess.Popen(mp4_join_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
+
+    os.unlink(video_file)
+    os.unlink(audio_file)
 
     return
 
@@ -160,6 +167,9 @@ def process_input(file):
     print "Final file is:"+ff
 
     package_mp4(ff)
+
+    for file in temp_files:
+        os.unlink(file)
         
     
     
