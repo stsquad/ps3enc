@@ -17,6 +17,8 @@ import sys
 import getopt
 import subprocess
 import re
+import sys
+import shlex
 
 verbose=0
 x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1"
@@ -74,38 +76,51 @@ def guess_best_crop(file):
 
     return crop_to_use
 
+def run_mencoder_command(command, dst_file):
+    if skip_encode and os.path.exists(dst_file):
+        print "Skipping generation of: "+dst_file
+    else:
+        print "Running: "+command
+        args = shlex.split(command)
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        while p.returncode == None:
+            status = p.stdout.readlines(4096)
+            if status:
+                line = status[-1]
+                if line.startswith("Pos:"):
+                    line.rstrip()
+                    sys.stdout.write("\r"+line)
+                    sys.stdout.flush()
+            else:
+                break
+            
+        # Grab final bits
+        (out, err) = p.communicate()
+        if p.returncode != 0:
+            print "Failed (%d/%s)" % (p.returncode, out)
+            return None
+
+    if os.path.exists(dst_file):
+        return dst_file
+    else:
+        print "No resulting file "+dst_file
+        return None
+
+
 def do_turbo_pass(src_file, dst_file, crop):
     """
     Do a fast turbo pass encode of the file
     """
 #    	my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
     turbo_cmd = mencoder_bin+" "+src_file+" -ovc "+ovc+" -oac copy "+crop+" "+x264_encode_opts+":bitrate="+str(bitrate)+":pass=1:turbo=1 -o "+dst_file
-    print "turbo_cmd:"+turbo_cmd
-    if skip_encode and os.path.exists(dst_file):
-        print "Skipping generation of: "+dst_file
-    else:
-        p = subprocess.Popen(turbo_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-        (out, err) = p.communicate()
-
-    temp_files.append(dst_file)
-    return dst_file
+    return run_mencoder_command(turbo_cmd, dst_file)
 
 def do_encoding_pass(src_file, dst_file, crop, epass=1):
     """
     Normal multi-stage encoding pass
     """
     encode_cmd = mencoder_bin+" "+src_file+" -ovc "+ovc+" -oac "+oac+" "+crop+" "+x264_encode_opts+":bitrate="+str(bitrate)+":pass="+str(epass)+" -o "+dst_file
-    print "encode_cmd:"+encode_cmd
-    if skip_encode and os.path.exists(dst_file):
-        print "Skipping generation of: "+dst_file
-    else:
-        p = subprocess.Popen(encode_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-        (out, err) = p.communicate()
-        
-
-    temp_files.append(dst_file)
-    return dst_file
-
+    return run_mencoder_command(encode_cmd, dst_file)
 
 def package_mp4(src_file):
     """
@@ -114,6 +129,11 @@ def package_mp4(src_file):
     (dir, file) = os.path.split(src_file)
     (base, extension) = os.path.splitext(file)
 
+    # Final file names
+    video_file = base+"_video.h264"
+    audio_file = base+"_audio.aac"
+    final_file = base+".mp4"
+
     # Get video
     mp4_video_cmd = mp4box_bin+" -aviraw video "+src_file;
     if verbose:
@@ -121,7 +141,6 @@ def package_mp4(src_file):
     p = subprocess.Popen(mp4_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
 
-    video_file = src_file+"_video.h264"
 
     # Get Audio
     mp4_audio_cmd = mp4box_bin+" -aviraw audio "+src_file;
@@ -129,16 +148,21 @@ def package_mp4(src_file):
         print "Running: "+mp4_audio_cmd
     p = subprocess.Popen(mp4_audio_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
-    os.rename(base+"_audio.raw", base+"_audio.aac");
+    if p.returncode != 0:
+        print "Failed (%d/%s)" % (p.returncode, out)
+        exit(-1)
+    os.rename(base+"_audio.raw", audio_file);
 
-    audio_file = src_file+"_audio.aac"
 
     # Join the two together
-    mp4_join_cmd = mp4box_bin+" -add "+base+"_audio.aac -add "+base+"_video.h264 "+base+".mp4"
+    mp4_join_cmd = mp4box_bin+" -add "+audio_file+" -add "+video_file+" "+final_file
     if verbose:
         print "Running: "+mp4_join_cmd
     p = subprocess.Popen(mp4_join_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
+    if p.returncode != 0:
+        print "Failed (%d/%s)" % (p.returncode, out)
+        exit(-1)
 
     os.unlink(video_file)
     os.unlink(audio_file)
@@ -164,9 +188,11 @@ def process_input(file):
         ff = do_encoding_pass(file, file+".SINGLEPASS.AVI", crop)
 
 
-    print "Final file is:"+ff
-
-    package_mp4(ff)
+    if os.path.exists(ff):
+        print "Final file is:"+ff
+        package_mp4(ff)
+    else:
+        print "Cannot package, no file encoded"
 
     for file in temp_files:
         os.unlink(file)
