@@ -39,8 +39,8 @@ def process_track(ep, title, track):
         log.write(dump_file+"\n");
         log.flush()
     else:
-        # Now we have ripped the file spawn ps3enc.pl to deal with it
-        enc_cmd="nice ps3enc.pl "+dump_file+" > /dev/null 2>&1 &"
+        # Now we have ripped the file spawn ps3enc.py to deal with it
+        enc_cmd="nice ps3enc.py "+dump_file+" > /dev/null 2>&1 &"
         if verbose>0:
             print "cmd: %s" % (enc_cmd)
             os.system(enc_cmd)
