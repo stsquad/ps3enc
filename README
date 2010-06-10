@@ -1,0 +1,35 @@
+Alex's PS3 Ripping Scripts
+==========================
+
+The following scripts are used for ripping and encoding DVD's into a
+format suitable for playing on a PS3 (h.264 encoded MP4's). All the
+heavy encoding work is done the excellent mencoder.
+
+There are currently two scripts
+
+rip.py
+------
+
+The rip script is used to rip a DVD into 1-n separate VOB files. By
+default it will rip the longest track on the DVD (assuming it to be
+the main feature) and anything else within 80% of the size. This means
+by default it should correctly rip a number of episodes if the DVD is
+part of a TV box set. The exact threshold can be controlled by --max
+flag. Episodes will be numbered from 1 unless the -e flag specifies a
+new base.
+
+Currently the script is hardwired to rip from /dev/dvd
+
+The script requires the "lsdvd" utility to be installed to get the
+chapter information from the DVD.
+
+Unless -l is specified the script will automatically kick of ps3enc.py
+to start encoding the VOB file. Otherwise the script will create a log
+of files ripped that can be passed to an encoding process as ripping 4
+episodes in one go on a single or duel core machine isn't actually
+that efficient.
+
+ps3enc.py
+---------
+
+
