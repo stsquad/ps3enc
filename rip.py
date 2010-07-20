@@ -29,7 +29,7 @@ def process_track(ep, title, track):
     os.chdir(dump_dir)
     
     dump_file=dump_dir+"/"+name+".vob"
-    rip_cmd="mplayer dvd://"+str(t['ix'])+" -dumpstream -dumpfile "+dump_file+" > /dev/null 2>&1"
+    rip_cmd="mplayer dvd://"+str(track)+" -dumpstream -dumpfile "+dump_file+" > /dev/null 2>&1"
     if verbose>0:
         print "cmd: %s" % (rip_cmd)
         os.system(rip_cmd)
@@ -45,55 +45,9 @@ def process_track(ep, title, track):
             print "cmd: %s" % (enc_cmd)
             os.system(enc_cmd)
 
-def usage():
-    print """
-    -h/--help         : this message
-    -verbose          : verbose
-    -b/--base=n       : start of numbering
-    -e/--episodes=<n> : number of episodes
-    -d/--dir=<path>   : overide default dest dir ("""+ripdir+""")
-    -l/--log=<path>   : don't encode just log, default based on dvd name
-    -m                : max length of episode (in minutes)
-
-    """
-    return
-
-# Start of code
-if __name__ == "__main__":
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:", ["help", "episodes=", "dir=","verbose", "log=", "max="])
-    except getopt.GetoptError, err:
-        usage()
-        exit
-
-    create_log=None
-
-    for o,a in opts:
-        if o in ("-h", "--help"):
-            usage()
-            exit
-        if o in ("-b", "--base"):
-            base=int(a)
-        if o in ("-e", "--episodes"):
-            episodes=a
-        if o in ("-d", "--dir"):
-            ripdir=a
-        if o in ("-v", "--verbose"):
-            verbose=1
-        if o in ("-l", "--log"):
-            if a:
-                log=open(a, "w", 1)
-            else:
-                create_log=1
-        if o in ("-m", "--max"):
-            maxl=float(a)*60
-
-    # First things first scan the DVD
-    info=os.popen("lsdvd -Oy", "r").read()
-    dvdinfo=eval(info[8:])
-    tracks=dvdinfo['track']
+def scan_dvd(dvdinfo, maxl):
     rip_tracks=[]  
-
+    
     # Define our max criteria
     if maxl==None:
         lt=dvdinfo['longest_track']
@@ -111,8 +65,69 @@ if __name__ == "__main__":
         if verbose>0:
             print "Track: %s" % t
         if length>minl and length<=maxl:
-            rip_tracks.append(t)
+            rip_tracks.append(t['ix'])
 
+    return rip_tracks
+    
+
+def usage():
+    print """
+    -h/--help         : this message
+    -verbose          : verbose
+    -b/--base=n       : start of numbering
+    -e/--episodes=<n> : number of episodes
+    -d/--dir=<path>   : overide default dest dir ("""+ripdir+""")
+    -l/--log=<path>   : don't encode just log, default based on dvd name
+    -t/--tracks=<tracks>: just rip given tracks
+    -m                : max length of episode (in minutes)
+
+    """
+    return
+
+# Start of code
+if __name__ == "__main__":
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:t:",
+                                   ["help", "episodes=", "dir=","verbose", "log=", "max=", "tracks="])
+    except getopt.GetoptError, err:
+        usage()
+        sys.exit(1)
+
+    create_log=None
+    rip_tracks=[]  
+
+    for o,a in opts:
+        if o in ("-h", "--help"):
+            usage()
+            sys.exit(1)
+        if o in ("-b", "--base"):
+            base=int(a)
+        if o in ("-e", "--episodes"):
+            episodes=a
+        if o in ("-d", "--dir"):
+            ripdir=a
+        if o in ("-v", "--verbose"):
+            verbose=1
+        if o in ("-l", "--log"):
+            if a:
+                log=open(a, "w", 1)
+            else:
+                create_log=1
+        if o in ("-m", "--max"):
+            maxl=float(a)*60
+        if o in ("-t", "--tracks"):
+            rip_tracks=a.split(",");
+
+
+    # First things first scan the DVD
+    info=os.popen("lsdvd -Oy", "r").read()
+    dvdinfo=eval(info[8:])
+    tracks=dvdinfo['track']
+
+    # if we haven't been told, guess which tracks to rip
+    if len(rip_tracks)==0:
+        rip_tracks = scan_dvd(dvdinfo, maxl)
+        
     print "Ripping %d episodes" % (len(rip_tracks))
 
     # If we haven't specified a log name then make one up
