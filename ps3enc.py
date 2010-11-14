@@ -21,13 +21,9 @@ import sys
 import shlex
 
 verbose=0
-x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1"
 bitrate=2000
 no_crop=False
-
-# What codecs?
-ovc="x264";
-oac="faac";
+test=False
 
 
 mplayer_bin="/usr/bin/mplayer"
@@ -106,20 +102,51 @@ def run_mencoder_command(command, dst_file):
         print "No resulting file "+dst_file
         return None
 
+def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
+    """
+    return a mencoder command string
+    >>> create_mencoder_cmd('fileA', 'fileB', 'copy', 'pass=1')
+    """
+    cmd = mencoder_bin+" "+src_file
+    # position
+    if test:
+        cmd = cmd + " -ss 20:00 -endpos 120 "
+    # audio encoding
+    # cmd = cmd + " -oac " + oac_args
+    if encode_audio:
+        cmd = cmd + " -oac faac -faacopts mpeg=4:object=2:br=128 "
+    else:
+        cmd = cmd + " -oac copy "
+    # crop params
+    cmd = cmd + " " + crop
+    # harddump for remuxed streams
+    cmd = cmd + " -vf softskip,harddup"
+    # x264 video encoding...
+# x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1"
+    cmd = cmd + " -ovc x264 -x264encopts bitrate="+str(bitrate)
+    cmd = cmd + ":me=hex:nodct_decimate:nointerlaced:no8x8dct:nofast_pskip:trellis=1:partitions=p8x8,b8x8,i4x4"
+    cmd = cmd + ":mixed_refs:keyint=300:keyint_min=30:psy_rd=0.8,0.2:frameref=3"
+    cmd = cmd + ":bframes=3:b_adapt=2:b_pyramid=none:weight_b:weightp=1:direct_pred=spatial:subq=6"
+    cmd = cmd + ":nombtree:chroma_me:cabac:aud:aq_mode=2:deblock:vbv_maxrate=20000:vbv_bufsize=20000:level_idc=41:threads=auto:ssim:psnr"
+    cmd = cmd + ":pass="+str(epass)
+    cmd = cmd + " -o " + dst_file
+
+    return cmd
+
 
 def do_turbo_pass(src_file, dst_file, crop):
     """
     Do a fast turbo pass encode of the file
     """
 #    	my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
-    turbo_cmd = mencoder_bin+" "+src_file+" -ovc "+ovc+" -oac copy "+crop+" "+x264_encode_opts+":bitrate="+str(bitrate)+":pass=1 -o "+dst_file
+    turbo_cmd = create_mencoder_cmd(src_file, dst_file, crop, False, 1)
     return run_mencoder_command(turbo_cmd, dst_file)
 
 def do_encoding_pass(src_file, dst_file, crop, epass=1):
     """
     Normal multi-stage encoding pass
     """
-    encode_cmd = mencoder_bin+" "+src_file+" -ovc "+ovc+" -oac "+oac+" "+crop+" "+x264_encode_opts+":bitrate="+str(bitrate)+":pass="+str(epass)+" -o "+dst_file
+    encode_cmd = create_mencoder_cmd(src_file, dst_file, crop, True, epass)
     return run_mencoder_command(encode_cmd, dst_file)
 
 def package_mp4(src_file):
@@ -221,7 +248,7 @@ that are compatibile with the PS3 system media playback software
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvnsp:", ["help", "verbose", "no-crop", "skip-encode", "passes="])
+        opts, args = getopt.getopt(sys.argv[1:], "hvnsp:", ["help", "verbose", "no-crop", "skip-encode", "passes=", "test"])
     except getopt.GetoptError, err:
         usage()
 
@@ -239,6 +266,8 @@ if __name__ == "__main__":
             skip_encode=True
         if o in ("-p", "--passes"):
             passes=int(a)
+        if o in ("--test"):
+            test=True
 
     for a in args:
         process_input(os.path.abspath(a))
