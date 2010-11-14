@@ -112,7 +112,7 @@ def do_turbo_pass(src_file, dst_file, crop):
     Do a fast turbo pass encode of the file
     """
 #    	my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
-    turbo_cmd = mencoder_bin+" "+src_file+" -ovc "+ovc+" -oac copy "+crop+" "+x264_encode_opts+":bitrate="+str(bitrate)+":pass=1:turbo=1 -o "+dst_file
+    turbo_cmd = mencoder_bin+" "+src_file+" -ovc "+ovc+" -oac copy "+crop+" "+x264_encode_opts+":bitrate="+str(bitrate)+":pass=1 -o "+dst_file
     return run_mencoder_command(turbo_cmd, dst_file)
 
 def do_encoding_pass(src_file, dst_file, crop, epass=1):
@@ -208,6 +208,7 @@ def usage():
     print "  -v, -verbose: Be verbose in output"
     print "  -n, --no-crop: Don't try and crop"
     print "  -s, --skip-encode: Skip steps if file present"
+    print "  -p, --passes: Number of encoding passes"
     print ""
     print "This script is a fairly dump wrapper to mencoder to encode files"
     print "that are compatibile with the PS3 system media playback software"
@@ -215,7 +216,7 @@ def usage():
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvns", ["help", "verbose", "no-crop", "skip-encode"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvnsp:", ["help", "verbose", "no-crop", "skip-encode", "passes="])
     except getopt.GetoptError, err:
         usage()
 
@@ -231,6 +232,8 @@ if __name__ == "__main__":
             no_crop=True
         if o in ("-s", "--skip-encode"):
             skip_encode=True
+        if o in ("-p", "--passes"):
+            passes=int(a)
 
     for a in args:
         process_input(os.path.abspath(a))
