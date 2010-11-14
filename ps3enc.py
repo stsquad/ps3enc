@@ -202,16 +202,21 @@ def process_input(file):
 
 
 def usage():
-    print "Usage:"
-    print "  " + me + " [options] filename"
-    print "  -h, --help:   Display usage test"
-    print "  -v, -verbose: Be verbose in output"
-    print "  -n, --no-crop: Don't try and crop"
-    print "  -s, --skip-encode: Skip steps if file present"
-    print "  -p, --passes: Number of encoding passes"
-    print ""
-    print "This script is a fairly dump wrapper to mencoder to encode files"
-    print "that are compatibile with the PS3 system media playback software"
+    print """
+Usage:
+
+"""  + me + """ [options] filename
+
+-h, --help         Display usage test
+-v, -verbose       Be verbose in output
+-n, --no-crop      Don't try and crop
+-s, --skip-encode  Skip steps if file present
+-p, --passes       Number of encoding passes
+-t, --test         Do a test segment
+    
+This script is a fairly dump wrapper to mencoder to encode files
+that are compatibile with the PS3 system media playback software
+"""
 
 # Start of code
 if __name__ == "__main__":
