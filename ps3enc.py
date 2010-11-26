@@ -24,6 +24,7 @@ verbose=0
 bitrate=2000
 no_crop=False
 test=False
+subtitle=None
 
 
 mplayer_bin="/usr/bin/mplayer"
@@ -111,6 +112,8 @@ def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
     # position
     if test:
         cmd = cmd + " -ss 20:00 -endpos 120 "
+    if subtitle:
+        cmd = cmd + " -sid "+subtitle
     # audio encoding
     # cmd = cmd + " -oac " + oac_args
     if encode_audio:
@@ -240,6 +243,7 @@ Usage:
 -s, --skip-encode  Skip steps if file present
 -p, --passes       Number of encoding passes
 -t, --test         Do a test segment
+    --slang=<id>   Bake in subtitles
     
 This script is a fairly dump wrapper to mencoder to encode files
 that are compatibile with the PS3 system media playback software
@@ -248,7 +252,7 @@ that are compatibile with the PS3 system media playback software
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvnsp:", ["help", "verbose", "no-crop", "skip-encode", "passes=", "test"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvns:p:", ["help", "verbose", "no-crop", "skip-encode", "passes=", "test", "slang="])
     except getopt.GetoptError, err:
         usage()
 
@@ -268,6 +272,8 @@ if __name__ == "__main__":
             passes=int(a)
         if o in ("--test"):
             test=True
+        if o in ("--slang"):
+            subtitle=a
 
     for a in args:
         process_input(os.path.abspath(a))
