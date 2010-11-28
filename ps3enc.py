@@ -45,7 +45,7 @@ def guess_best_crop(file):
     size = os.path.getsize(file)
     potential_crops = {}
     for i in range(0, size-size/20, size/20):
-        crop_cmd = mplayer_bin+" -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect "+file
+        crop_cmd = mplayer_bin+" -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+file+"'"
 #        crop_cmd = mplayer_bin+" -nosound -sb "+str(i)+" -frames 10 -vf cropdetect "+file
         if verbose:
             print "Running: "+crop_cmd
@@ -109,7 +109,7 @@ def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
     return a mencoder command string
     >>> create_mencoder_cmd('fileA', 'fileB', 'copy', 'pass=1')
     """
-    cmd = mencoder_bin+" "+src_file
+    cmd = mencoder_bin+" '"+src_file+"'"
     # position
     if test:
         cmd = cmd + " -ss 20:00 -endpos 120 "
@@ -135,7 +135,7 @@ def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
     cmd = cmd + ":bframes=3:b_adapt=2:b_pyramid=none:weight_b:weightp=1:direct_pred=spatial:subq=6"
     cmd = cmd + ":nombtree:chroma_me:cabac:aud:aq_mode=2:deblock:vbv_maxrate=20000:vbv_bufsize=20000:level_idc=41:threads=auto:ssim:psnr"
     cmd = cmd + ":pass="+str(epass)
-    cmd = cmd + " -o " + dst_file
+    cmd = cmd + " -o '" + dst_file + "'"
 
     return cmd
 
@@ -168,7 +168,7 @@ def package_mp4(src_file):
     final_file = base+".mp4"
 
     # Get video
-    mp4_video_cmd = mp4box_bin+" -aviraw video "+src_file;
+    mp4_video_cmd = mp4box_bin+" -aviraw video '"+src_file+"'";
     if verbose:
         print "Running: "+mp4_video_cmd
     p = subprocess.Popen(mp4_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
@@ -176,7 +176,7 @@ def package_mp4(src_file):
 
 
     # Get Audio
-    mp4_audio_cmd = mp4box_bin+" -aviraw audio "+src_file;
+    mp4_audio_cmd = mp4box_bin+" -aviraw audio '"+src_file+"'";
     if verbose:
         print "Running: "+mp4_audio_cmd
     p = subprocess.Popen(mp4_audio_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
@@ -188,7 +188,7 @@ def package_mp4(src_file):
 
 
     # Join the two together
-    mp4_join_cmd = mp4box_bin+" -add "+audio_file+" -add "+video_file+" "+final_file
+    mp4_join_cmd = mp4box_bin+" -add '"+audio_file+"' -add '"+video_file+"' '"+final_file+"'"
     if verbose:
         print "Running: "+mp4_join_cmd
     p = subprocess.Popen(mp4_join_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
