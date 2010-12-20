@@ -164,6 +164,11 @@ def package_mp4(src_file):
     (dir, file) = os.path.split(src_file)
     (base, extension) = os.path.splitext(file)
 
+    if verbose: print "package_mp4: (%s:%s) -> (%s:%s)\n" % (dir, file, base, extension)
+
+    # Do this all in the work directory
+    os.chdir(dir)
+    
     # Final file names
     video_file = base+"_video.h264"
     audio_file = base+"_audio.aac"
