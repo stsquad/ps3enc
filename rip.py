@@ -52,9 +52,9 @@ def scan_dvd(dvdinfo, maxl):
     if maxl==None:
         lt=dvdinfo['longest_track']
         maxl=float(tracks[lt-1]['length'])
-        if verbose>0:
-            print "Longest track was no: "+str(lt)+" @ "+str(maxl)
-
+        if verbose>0: print "Longest track was no: "+str(lt)+" @ "+str(maxl)
+    else:
+        if verbose>0: print "Have specified longest track to be "+str(maxl)
         
     minl=maxl*float(0.80)
 
