@@ -115,6 +115,8 @@ def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
         cmd = cmd + " -ss 20:00 -endpos 120 "
     if subtitle:
         cmd = cmd + " -sid "+subtitle
+    else:
+        cmd = cmd + " -nosub "
     if language:
         cmd = cmd + " -aid "+language
     # audio encoding
