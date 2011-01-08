@@ -16,6 +16,7 @@ episodes=0
 ripdir=os.getenv("HOME")+"/tmp"
 base=1
 maxl=None
+passes=None
 
 def process_track(ep, title, track):
     print "Ripping: %s" % (track)
@@ -40,7 +41,9 @@ def process_track(ep, title, track):
         log.flush()
     else:
         # Now we have ripped the file spawn ps3enc.py to deal with it
-        enc_cmd="nice ps3enc.py "+dump_file+" > /dev/null 2>&1 &"
+        enc_options=""
+        if passes: enc_options += "-p %d " % (passes)
+        enc_cmd="nice ps3enc.py "+enc_options+dump_file+" > /dev/null 2>&1 &"
         if verbose>0:
             print "cmd: %s" % (enc_cmd)
             os.system(enc_cmd)
@@ -79,6 +82,7 @@ def usage():
     -d/--dir=<path>   : overide default dest dir ("""+ripdir+""")
     -l/--log=<path>   : don't encode just log, default based on dvd name
     -t/--tracks=<tracks>: just rip given tracks
+    -p/--passes=<passes>: override passes used by encode script
     -m                : max length of episode (in minutes)
 
     """
@@ -87,8 +91,8 @@ def usage():
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:t:",
-                                   ["help", "episodes=", "dir=","verbose", "log=", "max=", "tracks="])
+        opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:t:p:",
+                                   ["help", "episodes=", "dir=","verbose", "log=", "max=", "tracks=", "passes="])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -116,7 +120,9 @@ if __name__ == "__main__":
         if o in ("-m", "--max"):
             maxl=float(a)*60
         if o in ("-t", "--tracks"):
-            rip_tracks=a.split(",");
+            rip_tracks=a.split(",")
+        if o in ("-p", "--passes"):
+            passes=a
 
 
     # First things first scan the DVD
