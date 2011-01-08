@@ -24,6 +24,7 @@ verbose=0
 bitrate=2000
 no_crop=False
 test=False
+debug=False
 language=None
 subtitle=None
 
@@ -204,8 +205,9 @@ def package_mp4(src_file):
         print "Failed (%d/%s)" % (p.returncode, out)
         exit(-1)
 
-    os.unlink(video_file)
-    os.unlink(audio_file)
+    if not debug:
+        os.unlink(video_file)
+        os.unlink(audio_file)
 
     return
 
@@ -248,7 +250,8 @@ Usage:
 """  + me + """ [options] filename
 
 -h, --help         Display usage test
--v, -verbose       Be verbose in output
+-v, --verbose      Be verbose in output
+-d, --debug        Keep interim files for debugging
 -n, --no-crop      Don't try and crop
 -s, --skip-encode  Skip steps if file present
 -p, --passes       Number of encoding passes
@@ -263,7 +266,7 @@ that are compatibile with the PS3 system media playback software
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvnst:p:a:", ["help", "verbose", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang="])
+        opts, args = getopt.getopt(sys.argv[1:], "hvdnst:p:a:", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang="])
     except getopt.GetoptError, err:
         usage()
 
@@ -275,6 +278,8 @@ if __name__ == "__main__":
             exit
         if o in ("-v", "--verbose"):
             verbose=1
+        if o in ("-d", "--debug"):
+            debug=True
         if o in ("-n", "--no-crop"):
             no_crop=True
         if o in ("-s", "--skip-encode"):
