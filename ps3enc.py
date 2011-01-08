@@ -254,7 +254,7 @@ Usage:
 -d, --debug        Keep interim files for debugging
 -n, --no-crop      Don't try and crop
 -s, --skip-encode  Skip steps if file present
--p, --passes       Number of encoding passes
+-p, --passes       Number of encoding passes (default """+str(passes)+""")
 -t, --test         Do a test segment
 -a, --alang=<id>   Audio channel
     --slang=<id>   Bake in subtitles
