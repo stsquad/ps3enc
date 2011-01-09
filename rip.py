@@ -77,13 +77,21 @@ def usage():
     print """
     -h/--help         : this message
     -verbose          : verbose
-    -b/--base=n       : start of numbering
-    -e/--episodes=<n> : number of episodes
+
+    Base options
     -d/--dir=<path>   : overide default dest dir ("""+ripdir+""")
     -l/--log=<path>   : don't encode just log, default based on dvd name
+
+    Track selection
     -t/--tracks=<tracks>: just rip given tracks
-    -p/--passes=<passes>: override passes used by encode script
+    -b/--base=n       : start of numbering for episodes
+    -e/--episodes=<n> : number of episodes
+    -1                : just rip longest track
     -m                : max length of episode (in minutes)
+
+    Encoding Options
+    -p/--passes=<passes>: override passes used by encode script
+
 
     """
     return
@@ -91,7 +99,7 @@ def usage():
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:t:p:",
+        opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:t:p:1",
                                    ["help", "episodes=", "dir=","verbose", "log=", "max=", "tracks=", "passes="])
     except getopt.GetoptError, err:
         usage()
@@ -108,6 +116,8 @@ if __name__ == "__main__":
             base=int(a)
         if o in ("-e", "--episodes"):
             episodes=a
+        if o in ("-1" ):
+            episodes=1
         if o in ("-d", "--dir"):
             ripdir=a
         if o in ("-v", "--verbose"):
