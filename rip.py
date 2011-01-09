@@ -42,7 +42,7 @@ def process_track(ep, title, track):
     else:
         # Now we have ripped the file spawn ps3enc.py to deal with it
         enc_options=""
-        if passes: enc_options += "-p %d " % (passes)
+        if passes: enc_options += "-p %s " % (passes)
         enc_cmd="nice ps3enc.py "+enc_options+dump_file+" > /dev/null 2>&1 &"
         if verbose>0:
             print "cmd: %s" % (enc_cmd)
