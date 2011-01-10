@@ -20,10 +20,11 @@ import re
 import sys
 import shlex
 
-verbose=0
+verbose=False
 bitrate=2000
 no_crop=False
 test=False
+progress=False
 debug=False
 language=None
 subtitle=None
@@ -37,8 +38,6 @@ me=os.path.basename(sys.argv[0])
 passes=3
 skip_encode=False
 
-temp_files = []
-
 def guess_best_crop(file):
     """
     Calculate the best cropping parameters to use by looking over the whole file
@@ -47,9 +46,8 @@ def guess_best_crop(file):
     potential_crops = {}
     for i in range(0, size-size/20, size/20):
         crop_cmd = mplayer_bin+" -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+file+"'"
-#        crop_cmd = mplayer_bin+" -nosound -sb "+str(i)+" -frames 10 -vf cropdetect "+file
-        if verbose:
-            print "Running: "+crop_cmd
+#        if verbose:
+#            print "Running: "+crop_cmd
         try:
             p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
             (out, err) = p.communicate()
@@ -79,12 +77,12 @@ def run_mencoder_command(command, dst_file):
     if skip_encode and os.path.exists(dst_file):
         print "Skipping generation of: "+dst_file
     else:
-        print "Running: "+command
+        print "Running: %s (progress is %s)" % (command, str(progress))
         args = shlex.split(command)
         p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
         while p.returncode == None:
             status = p.stdout.readlines(4096)
-            if status:
+            if status and progress==True:
                 line = status[-1]
                 if line.startswith("Pos:"):
                     line.rstrip()
@@ -212,35 +210,38 @@ def package_mp4(src_file):
     return
 
 
+# Process a single VOB file into final MP4
+def process_input(vob_file):
+    if verbose: print "Handling: "+vob_file
 
-def process_input(file):
-    if verbose:
-        print "Handling: "+a
+    temp_files = []
 
     if no_crop:
         crop = ""
     else:
-        crop = guess_best_crop(file)
+        crop = guess_best_crop(vob_file)
+
+    if verbose: print "Calculated crop of %s for %s" % (crop, vob_file)
 
     if passes>1:
-        do_turbo_pass(file, file+".TURBO.AVI", crop)
+        temp_files.append(do_turbo_pass(vob_file, vob_file+".TURBO.AVI", crop))
         for i in range(2, passes+1):
-            ff = do_encoding_pass(file, file+".PASS"+str(i)+".AVI", crop, 3)
+            temp_files.append(do_encoding_pass(vob_file, vob_file+".PASS"+str(i)+".AVI", crop, 3))
     else:
-        ff = do_encoding_pass(file, file+".SINGLEPASS.AVI", crop)
+        temp_files.append(do_encoding_pass(vob_file, vob_file+".SINGLEPASS.AVI", crop))
+
+    ff = temp_files[-1]
+    if verbose: print "Final encode of %s is %s" % (vob_file, ff)
 
 
     if os.path.exists(ff):
         print "Final file is:"+ff
         package_mp4(ff)
+        if not debug:
+            for tf in temp_files:
+                os.unlink(tf)
     else:
         print "Cannot package, no file encoded"
-
-    for file in temp_files:
-        os.unlink(file)
-        
-    
-    
 
 
 def usage():
@@ -251,6 +252,7 @@ Usage:
 
 -h, --help         Display usage test
 -v, --verbose      Be verbose in output
+--progress         Show progress of encode
 -d, --debug        Keep interim files for debugging
 -n, --no-crop      Don't try and crop
 -s, --skip-encode  Skip steps if file present
@@ -260,13 +262,13 @@ Usage:
     --slang=<id>   Bake in subtitles
     
 This script is a fairly dump wrapper to mencoder to encode files
-that are compatibile with the PS3 system media playback software
+that are compatible with the PS3 system media playback software
 """
 
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvdnst:p:a:", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang="])
+        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress"])
     except getopt.GetoptError, err:
         usage()
 
@@ -277,7 +279,7 @@ if __name__ == "__main__":
             usage()
             exit
         if o in ("-v", "--verbose"):
-            verbose=1
+            verbose=True
         if o in ("-d", "--debug"):
             debug=True
         if o in ("-n", "--no-crop"):
@@ -286,13 +288,23 @@ if __name__ == "__main__":
             skip_encode=True
         if o in ("-p", "--passes"):
             passes=int(a)
-        if o in ("--test"):
+        if o in ("-t", "--test"):
             test=True
-        if o in ("--slang"):
+        if o is ("--slang"):
             subtitle=a
-        if o in ("--alang"):
+        if o is ("--alang"):
             language=a
+        if o is ("--progress"):
+            print "setting progress from (%s)" % (o)
+            progress=True
 
+    # Calculate the full paths ahead of time (lest cwd changes)
+    vob_files = []
     for a in args:
-        process_input(os.path.abspath(a))
+        vob = os.path.realpath(a)
+        print "%s is realpath of %s" % (vob, a)
+        vob_files.append(vob)
+
+    for f in vob_files:
+        process_input(f)
         
