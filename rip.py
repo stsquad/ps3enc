@@ -50,25 +50,29 @@ def process_track(ep, title, track):
 
 def scan_dvd(dvdinfo, maxl):
     rip_tracks=[]  
-    
-    # Define our max criteria
-    if maxl==None:
+
+    # If only one episode rip longest...
+    if episodes==1:
         lt=dvdinfo['longest_track']
-        maxl=float(tracks[lt-1]['length'])
-        if verbose>0: print "Longest track was no: "+str(lt)+" @ "+str(maxl)
+        rip_tracks.append(lt)
     else:
-        if verbose>0: print "Have specified longest track to be "+str(maxl)
-        
-    minl=maxl*float(0.80)
+        # Define our max criteria
+        if maxl==None:
+            lt=dvdinfo['longest_track']
+            maxl=float(tracks[lt-1]['length'])
+            if verbose>0: print "Longest track was no: "+str(lt)+" @ "+str(maxl)
+        else:
+            if verbose>0: print "Have specified longest track to be "+str(maxl)
 
-    print "Looking for episodes between %f and %f seconds" % (maxl, minl)
+        minl=maxl*float(0.80)
 
-    for t in tracks:
-        length=t['length']
-        if verbose>0:
-            print "Track: %s" % t
-        if length>minl and length<=maxl:
-            rip_tracks.append(t['ix'])
+        print "Looking for episodes between %f and %f seconds" % (maxl, minl)
+
+        for t in tracks:
+            length=t['length']
+            if verbose>0: print "Track: %s" % t
+            if length>minl and length<=maxl:
+                rip_tracks.append(t['ix'])
 
     return rip_tracks
     
