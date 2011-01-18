@@ -10,6 +10,7 @@ import sys
 import getopt
 
 verbose=0
+use_vlc=False
 log=None
 encode="list"
 episodes=0
@@ -29,13 +30,15 @@ def process_track(ep, title, track):
         os.mkdir(dump_dir)
 
     os.chdir(dump_dir)
-    
-    dump_file=dump_dir+"/"+name+".vob"
-    rip_cmd="mplayer dvd://"+str(track)+" -dumpstream -dumpfile "+dump_file+" > /dev/null 2>&1"
-    if verbose>0:
-        print "cmd: %s" % (rip_cmd)
-        os.system(rip_cmd)
 
+    dump_file=dump_dir+"/"+name+".vob"
+    if use_vlc:
+        rip_cmd="vlc -I rc dvd:/dev/hda@"+str(track)+' --sout "#standard{access=file,mux=ps,dst='+dump_file+'}"'
+    else:
+        rip_cmd="mplayer dvdnav://"+str(track)+" -dumpstream -dumpfile "+dump_file+" > /dev/null 2>&1"
+
+    if verbose>0: print "cmd: %s" % (rip_cmd)
+    os.system(rip_cmd)
 
     if log:
         log.write(dump_file+"\n");
@@ -107,7 +110,7 @@ def usage():
 if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:t:p:1r",
-                                   ["help", "episodes=", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only"])
+                                   ["help", "vlc", "episodes=", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only"])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -129,6 +132,8 @@ if __name__ == "__main__":
             ripdir=a
         if o in ("-v", "--verbose"):
             verbose=1
+        if o == "--vlc":
+            use_vlc=True
         if o in ("-l", "--log"):
             if a:
                 log=open(a, "w", 1)
