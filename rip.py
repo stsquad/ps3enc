@@ -19,6 +19,7 @@ base=1
 maxl=None
 passes=None
 encode=True
+dvd=None
 
 def process_track(ep, title, track):
     print "Ripping: %s" % (track)
@@ -35,7 +36,10 @@ def process_track(ep, title, track):
     if use_vlc:
         rip_cmd="vlc -I rc dvd:/dev/hda@"+str(track)+' --sout "#standard{access=file,mux=ps,dst='+dump_file+'}"'
     else:
-        rip_cmd="mplayer dvdnav://"+str(track)+" -dumpstream -dumpfile "+dump_file+" > /dev/null 2>&1"
+        rip_cmd="mplayer dvdnav://"+str(track)+" -dumpstream -dumpfile "+dump_file
+        if dvd: rip_cmd += " -dvd-device "+dvd
+
+    rip_cmd += " > /dev/null 2>&1"
 
     if verbose>0: print "cmd: %s" % (rip_cmd)
     os.system(rip_cmd)
@@ -91,6 +95,7 @@ def usage():
     -d/--dir=<path>   : overide default dest dir ("""+ripdir+""")
     -l/--log=<path>   : don't encode just log, default based on dvd name
     -r/--rip-only     : don't encode just rip
+    -dvd=<path>       : path to DVD device
 
     Track selection
     -t/--tracks=<tracks>: just rip given tracks
@@ -110,7 +115,7 @@ def usage():
 if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:t:p:1r",
-                                   ["help", "vlc", "episodes=", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only"])
+                                   ["help", "vlc", "episodes=", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd="])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -148,10 +153,14 @@ if __name__ == "__main__":
             rip_tracks=a.split(",")
         if o in ("-p", "--passes"):
             passes=a
+        if o in ("--dvd"):
+            dvd=a
 
 
-    # First things first scan the DVD
-    info=os.popen("lsdvd -Oy", "r").read()
+    # First things first scan the DVD, TODO: rewrite with subprocess
+    lsdvd="lsdvd -Oy "
+    if dvd: lsdvd += dvd
+    info=os.popen(lsdvd, "r").read()
     dvdinfo=eval(info[8:])
     tracks=dvdinfo['track']
 
