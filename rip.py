@@ -8,12 +8,13 @@
 import os
 import sys
 import getopt
+from operator import itemgetter
 
 verbose=0
 use_vlc=False
 log=None
 encode="list"
-episodes=0
+single_episode=False
 ripdir=os.getenv("HOME")+"/tmp"
 base=1
 maxl=None
@@ -57,19 +58,50 @@ def process_track(ep, title, track):
             print "cmd: %s" % (enc_cmd)
             os.system(enc_cmd)
 
+def round_time(time, mins):
+    """
+    Round time to nearest n minutes
+    """
+    rem = time % (60*mins)
+    res = time - rem
+    return res
+
+def get_mode_time(times):
+    """
+    Count the times and calculate the mode
+    """
+    time_dict = dict()
+    for n in times:
+	if n in time_dict:
+ 		time_dict[n] = time_dict[n]+1
+	else:
+ 		time_dict[n] = 1
+
+    # sort dictionary
+    time_sorted = sorted(time_dict.iteritems(), key=itemgetter(1))
+    mode = time_sorted[-1][0]
+    return mode
+
+
 def scan_dvd(dvdinfo, maxl):
     rip_tracks=[]  
 
     # If only one episode rip longest...
-    if episodes==1:
+    if single_episode:
+        # 99% of the time the longest track is what you want
         lt=dvdinfo['longest_track']
         rip_tracks.append(lt)
     else:
         # Define our max criteria
         if maxl==None:
-            lt=dvdinfo['longest_track']
-            maxl=float(tracks[lt-1]['length'])
-            if verbose>0: print "Longest track was no: "+str(lt)+" @ "+str(maxl)
+            # As episode DVDs often have a "fake" track which strings them
+            # all together lets try and be a bit more clever.
+            rt = []
+            for t in tracks:
+                rt.append(round_time(t['length'], 5))
+            mode = get_mode_time(rt)
+            maxl  = mode + (60*5)
+            if verbose>0: print "Mode of episode tracks was: "+str(mode)+" giving max of "+str(maxl)
         else:
             if verbose>0: print "Have specified longest track to be "+str(maxl)
 
@@ -100,7 +132,7 @@ def usage():
     Track selection
     -t/--tracks=<tracks>: just rip given tracks
     -b/--base=n       : start of numbering for episodes
-    -e/--episodes=<n> : number of episodes
+    -e/--episodes     : disc contains episodes
     -1                : just rip longest track
     -m                : max length of episode (in minutes)
 
@@ -114,8 +146,8 @@ def usage():
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hb:e:d:vlm:t:p:1r",
-                                   ["help", "vlc", "episodes=", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd="])
+        opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1r",
+                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd="])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -130,9 +162,9 @@ if __name__ == "__main__":
         if o in ("-b", "--base"):
             base=int(a)
         if o in ("-e", "--episodes"):
-            episodes=a
+            single_episode=False
         if o in ("-1" ):
-            episodes=1
+            single_episode=True
         if o in ("-d", "--dir"):
             ripdir=a
         if o in ("-v", "--verbose"):
