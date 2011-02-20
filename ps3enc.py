@@ -28,6 +28,7 @@ progress=False
 debug=False
 language=None
 subtitle=None
+package_only=False
 
 
 mplayer_bin="/usr/bin/mplayer"
@@ -260,6 +261,8 @@ Usage:
 -t, --test         Do a test segment
 -a, --alang=<id>   Audio channel
     --slang=<id>   Bake in subtitles
+
+    --pkg          Just package
     
 This script is a fairly dump wrapper to mencoder to encode files
 that are compatible with the PS3 system media playback software
@@ -268,7 +271,7 @@ that are compatible with the PS3 system media playback software
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg"])
     except getopt.GetoptError, err:
         usage()
 
@@ -297,14 +300,20 @@ if __name__ == "__main__":
         if o is ("--progress"):
             print "setting progress from (%s)" % (o)
             progress=True
+        if o is ("--pkg"):
+            package_only=True
 
     # Calculate the full paths ahead of time (lest cwd changes)
-    vob_files = []
+    files = []
     for a in args:
-        vob = os.path.realpath(a)
-        print "%s is realpath of %s" % (vob, a)
-        vob_files.append(vob)
+        fp = os.path.realpath(a)
+        files.append(fp)
 
-    for f in vob_files:
-        process_input(f)
+    for f in files:
+        if verbose: print "Processing: %s/%s" % (f, package_only)
+        
+        if package_only:
+            package_mp4(f)
+        else:
+            process_input(f)
         
