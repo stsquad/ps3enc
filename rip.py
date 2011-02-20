@@ -21,6 +21,7 @@ maxl=None
 passes=None
 encode=True
 dvd=None
+nonav=False
 
 def process_track(ep, title, track):
     print "Ripping: %s" % (track)
@@ -37,7 +38,12 @@ def process_track(ep, title, track):
     if use_vlc:
         rip_cmd="vlc -I rc dvd:/dev/hda@"+str(track)+' --sout "#standard{access=file,mux=ps,dst='+dump_file+'}"'
     else:
-        rip_cmd="mplayer dvdnav://"+str(track)+" -dumpstream -dumpfile "+dump_file
+        if nonav:
+            nav = "dvd://"+str(track)
+        else:
+            nav = "dvdnav://"+str(track)
+            
+        rip_cmd="mplayer "+nav+" -dumpstream -dumpfile "+dump_file
         if dvd: rip_cmd += " -dvd-device "+dvd
 
     rip_cmd += " > /dev/null 2>&1"
@@ -101,7 +107,7 @@ def scan_dvd(dvdinfo, maxl):
                 rt.append(round_time(t['length'], 5))
             mode = get_mode_time(rt)
             maxl  = mode + (60*5)
-            if verbose>0: print "Mode of episode tracks was: "+str(mode)+" giving max of "+str(maxl)
+            if verbose>0: print "Mode of episode tracks was: "+str(mode)+"  "+str(maxl)
         else:
             if verbose>0: print "Have specified longest track to be "+str(maxl)
 
@@ -140,6 +146,9 @@ def usage():
     -p/--passes=<passes>: override passes used by encode script
 
 
+    Special options
+    --nonav           : don't use dvdnav, use dvd
+
     """
     return
 
@@ -147,7 +156,7 @@ def usage():
 if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1r",
-                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd="])
+                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav"])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -187,6 +196,8 @@ if __name__ == "__main__":
             passes=a
         if o in ("--dvd"):
             dvd=a
+        if o in ("--nonav"):
+            nonav=True
 
 
     # First things first scan the DVD, TODO: rewrite with subprocess
