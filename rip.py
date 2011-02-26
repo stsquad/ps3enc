@@ -18,10 +18,10 @@ single_episode=False
 ripdir=os.getenv("HOME")+"/tmp"
 base=1
 maxl=None
-passes=None
 encode=True
 dvd=None
 nonav=False
+encode_options=""
 
 def process_track(ep, title, track):
     print "Ripping: %s" % (track)
@@ -29,8 +29,9 @@ def process_track(ep, title, track):
     name=title+"-"+str(ep)
 
     dump_dir=ripdir+"/"+name
+        
     if not os.path.isdir(dump_dir):
-        os.mkdir(dump_dir)
+        os.makedirs(dump_dir)
 
     os.chdir(dump_dir)
 
@@ -58,8 +59,7 @@ def process_track(ep, title, track):
     if encode:
         # Now we have ripped the file spawn ps3enc.py to deal with it
         enc_options=""
-        if passes: enc_options += "-p %s " % (passes)
-        enc_cmd="nice ps3enc.py "+enc_options+dump_file+" > /dev/null 2>&1 &"
+        enc_cmd="nice ps3enc.py "+encode_options+dump_file+" > /dev/null 2>&1 &"
         if verbose>0:
             print "cmd: %s" % (enc_cmd)
             os.system(enc_cmd)
@@ -144,6 +144,7 @@ def usage():
 
     Encoding Options
     -p/--passes=<passes>: override passes used by encode script
+    -c/--cartoon      : pass --cartoon to encode script
 
 
     Special options
@@ -155,8 +156,8 @@ def usage():
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1r",
-                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav"])
+        opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1rc",
+                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon"])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -175,7 +176,7 @@ if __name__ == "__main__":
         if o in ("-1" ):
             single_episode=True
         if o in ("-d", "--dir"):
-            ripdir=a
+            ripdir=os.path.expanduser(a)
         if o in ("-v", "--verbose"):
             verbose=1
         if o == "--vlc":
@@ -193,7 +194,9 @@ if __name__ == "__main__":
         if o in ("-t", "--tracks"):
             rip_tracks=a.split(",")
         if o in ("-p", "--passes"):
-            passes=a
+            encode_options += "-p %s " % (a)
+        if o in ("-c", "--cartoon"):
+            encode_options += "--cartoon "
         if o in ("--dvd"):
             dvd=a
         if o in ("--nonav"):
