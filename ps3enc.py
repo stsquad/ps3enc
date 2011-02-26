@@ -29,6 +29,7 @@ debug=False
 language=None
 subtitle=None
 package_only=False
+cartoon=False
 
 
 mplayer_bin="/usr/bin/mplayer"
@@ -129,6 +130,11 @@ def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
     cmd = cmd + " " + crop
     # harddump for remuxed streams
     cmd = cmd + " -vf softskip,harddup"
+
+    # For cartoons post-processing median deinterlacer seems to help
+    if cartoon:
+        cmd = cmd + ",pp=md"
+        
     # x264 video encoding...
 # x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1"
     cmd = cmd + " -ovc x264 -x264encopts bitrate="+str(bitrate)
@@ -257,10 +263,13 @@ Usage:
 -d, --debug        Keep interim files for debugging
 -n, --no-crop      Don't try and crop
 -s, --skip-encode  Skip steps if file present
--p, --passes       Number of encoding passes (default """+str(passes)+""")
--t, --test         Do a test segment
--a, --alang=<id>   Audio channel
-    --slang=<id>   Bake in subtitles
+
+Encoding control:
+    -p, --passes       Number of encoding passes (default """+str(passes)+""")
+    -c, --cartoon      Assume we are encoding a cartoon
+    -t, --test         Do a test segment
+    -a, --alang=<id>   Audio channel
+        --slang=<id>   Bake in subtitles
 
     --pkg          Just package
     
@@ -271,7 +280,7 @@ that are compatible with the PS3 system media playback software
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:c", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon"])
     except getopt.GetoptError, err:
         usage()
 
@@ -291,6 +300,11 @@ if __name__ == "__main__":
             skip_encode=True
         if o in ("-p", "--passes"):
             passes=int(a)
+        if o in ("-c", "--cartoon"):
+            print "Setting cartoon presets"
+            passes=1
+            bitrate=1000
+            cartoon=True
         if o in ("-t", "--test"):
             test=True
         if o is ("--slang"):
