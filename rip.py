@@ -222,18 +222,13 @@ if __name__ == "__main__":
     if create_log:
         ep_start=str(base)
         ep_end=str(base+len(rip_tracks)-1)
-        log_name=os.getenv("HOME")+"/tmp/"+dvdinfo['title']+"-e"+ep_start+"-"+ep_end+".log"
+        log_name=os.getenv("HOME")+"/tmp/"+title+"-e"+ep_start+"-"+ep_end+".log"
         log=open(log_name, "w", 1)
 
     
     for t in rip_tracks:
-        process_track(base, dvdinfo['title'], t)
+        process_track(base, title, t)
         base=base+1
             
     # Eject the DVD
-    dev=dvdinfo['device']
-    real_dev=os.readlink(dev)
-    final_dev=os.path.join(os.path.dirname(dev), real_dev)
-    print "DVD on %s?" % (final_dev)
-    os.system("umount "+final_dev)
-    os.system("cdrecord --eject")
+    os.system("eject")
