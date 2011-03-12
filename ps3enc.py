@@ -266,7 +266,10 @@ Usage:
 
 Encoding control:
     -p, --passes       Number of encoding passes (default """+str(passes)+""")
-    -c, --cartoon      Assume we are encoding a cartoon
+    -c, --cartoon      Assume we are encoding a cartoon (lower bitrate + filters)
+    -f, --film         Assume we are encoding a film (higher bitrate)
+
+
     -t, --test         Do a test segment
     -a, --alang=<id>   Audio channel
         --slang=<id>   Bake in subtitles
@@ -280,7 +283,7 @@ that are compatible with the PS3 system media playback software
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:c", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:c", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon", "film", "bitrate="])
     except getopt.GetoptError, err:
         usage()
 
@@ -305,6 +308,10 @@ if __name__ == "__main__":
             passes=1
             bitrate=1000
             cartoon=True
+        if o in ("-f", "--film"):
+            bitrate=3000
+        if o in ("--bitrate"):
+            bitrate=a
         if o in ("-t", "--test"):
             test=True
         if o is ("--slang"):
