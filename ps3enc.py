@@ -19,6 +19,8 @@ import subprocess
 import re
 import sys
 import shlex
+import shutil
+import tempfile
 
 verbose=False
 bitrate=2000
@@ -39,6 +41,16 @@ mp4box_bin="/usr/bin/MP4Box"
 me=os.path.basename(sys.argv[0])
 passes=3
 skip_encode=False
+
+def calc_temp_pathspec(src_file, stage, temp_dir):
+    """
+    >>> calc_temp_pathspec('/home/alex/tmp/video/something.vob', 'turbo.avi', '/tmp/tmpdir_xxx')
+    '/tmp/tmpdir_xxx/something.turbo.avi'
+    """
+    (dir, file) = os.path.split(src_file)
+    (base, extension) = os.path.splitext(file)
+    final_path = temp_dir+"/"+base+"."+stage
+    return final_path
 
 def guess_best_crop(file):
     """
@@ -108,7 +120,6 @@ def run_mencoder_command(command, dst_file):
 def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
     """
     return a mencoder command string
-    >>> create_mencoder_cmd('fileA', 'fileB', 'copy', 'pass=1')
     """
     cmd = mencoder_bin+" '"+src_file+"'"
     # position
@@ -163,7 +174,7 @@ def do_encoding_pass(src_file, dst_file, crop, epass=1):
     encode_cmd = create_mencoder_cmd(src_file, dst_file, crop, True, epass)
     return run_mencoder_command(encode_cmd, dst_file)
 
-def package_mp4(src_file):
+def package_mp4(src_file, temp_dir, dest_dir):
     """
     Package a given AVI file into clean MP4
     """
@@ -173,12 +184,12 @@ def package_mp4(src_file):
     if verbose: print "package_mp4: (%s:%s) -> (%s:%s)\n" % (dir, file, base, extension)
 
     # Do this all in the work directory
-    os.chdir(dir)
+    os.chdir(temp_dir)
     
     # Final file names
-    video_file = base+"_video.h264"
-    audio_file = base+"_audio.aac"
-    final_file = base+".mp4"
+    video_file = calc_temp_pathspec(src_file, "video.h264", temp_dir)
+    audio_file = calc_temp_pathspec(src_file, "audio.aac", temp_dir)
+    final_file = dest_dir+"/"+base+".mp4"
 
     # Get video
     mp4_video_cmd = mp4box_bin+" -aviraw video '"+src_file+"'";
@@ -186,6 +197,7 @@ def package_mp4(src_file):
         print "Running: "+mp4_video_cmd
     p = subprocess.Popen(mp4_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
+    os.rename(base+"_video.h264", video_file)
 
 
     # Get Audio
@@ -221,7 +233,17 @@ def package_mp4(src_file):
 def process_input(vob_file):
     if verbose: print "Handling: "+vob_file
 
-    temp_files = []
+    # Save were we are
+    (dir, file) = os.path.split(vob_file)
+    (base, extension) = os.path.splitext(file)
+
+    start_dir = os.getcwd()
+    
+    # Temp files
+    temp_dir = tempfile.mkdtemp("encode", "video")
+    os.chdir(temp_dir)
+    
+    temp_files = [temp_dir+"/divx2pass.log"]
 
     if no_crop:
         crop = ""
@@ -231,11 +253,15 @@ def process_input(vob_file):
     if verbose: print "Calculated crop of %s for %s" % (crop, vob_file)
 
     if passes>1:
-        temp_files.append(do_turbo_pass(vob_file, vob_file+".TURBO.AVI", crop))
+        tf = calc_temp_pathspec(vob_file, "turbo.avi", temp_dir)
+        temp_files.append(do_turbo_pass(vob_file, tf, crop))
         for i in range(2, passes+1):
-            temp_files.append(do_encoding_pass(vob_file, vob_file+".PASS"+str(i)+".AVI", crop, 3))
+            tf = calc_temp_pathspec(vob_file, "pass"+str(i)+".avi", temp_dir)
+            temp_files.append(do_encoding_pass(vob_file, tf, crop, 3))
     else:
-        temp_files.append(do_encoding_pass(vob_file, vob_file+".SINGLEPASS.AVI", crop))
+        tf = calc_temp_pathspec(vob_file, "singlepass.avi", temp_dir)
+        temp_files.append(do_encoding_pass(vob_file, tf, crop))
+
 
     ff = temp_files[-1]
     if verbose: print "Final encode of %s is %s" % (vob_file, ff)
@@ -243,10 +269,12 @@ def process_input(vob_file):
 
     if os.path.exists(ff):
         print "Final file is:"+ff
-        package_mp4(ff)
+        package_mp4(ff, temp_dir, dir)
+        os.chdir(start_dir)
         if not debug:
             for tf in temp_files:
                 os.unlink(tf)
+            shutil.rmtree(temp_dir)
     else:
         print "Cannot package, no file encoded"
 
@@ -283,7 +311,7 @@ that are compatible with the PS3 system media playback software
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:c", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon", "film", "bitrate="])
+        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:c", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon", "film", "bitrate=", "unit-tests"])
     except getopt.GetoptError, err:
         usage()
 
@@ -323,6 +351,11 @@ if __name__ == "__main__":
             progress=True
         if o is ("--pkg"):
             package_only=True
+        if o is ("--unit-tests"):
+            import doctest
+            doctest.testmod()
+            exit()
+            
 
     # Calculate the full paths ahead of time (lest cwd changes)
     files = []
@@ -331,7 +364,7 @@ if __name__ == "__main__":
         files.append(fp)
 
     for f in files:
-        if verbose: print "Processing: %s/%s" % (f, package_only)
+        if verbose: print "Processing: %s package only=%s" % (f, package_only)
         
         if package_only:
             package_mp4(f)
