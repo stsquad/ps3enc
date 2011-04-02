@@ -142,7 +142,7 @@ def usage():
     -1                : just rip longest track
     -m                : max length of episode (in minutes)
 
-    Encoding Options
+    Encoding Options (default: %s)
     -p/--passes=<passes>: override passes used by encode script
     -c/--cartoon      : pass --cartoon to encode script
 
@@ -150,7 +150,7 @@ def usage():
     Special options
     --nonav           : don't use dvdnav, use dvd
 
-    """
+    """ % (encode_options)
     return
 
 # Start of code
