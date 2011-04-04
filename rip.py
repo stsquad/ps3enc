@@ -104,7 +104,9 @@ def scan_dvd(dvdinfo, maxl):
             # all together lets try and be a bit more clever.
             rt = []
             for t in tracks:
-                rt.append(round_time(t['length'], 5))
+                tt = round_time(t['length'], 5)
+                if tt>0:
+                    rt.append(tt)
             mode = get_mode_time(rt)
             maxl  = mode + (60*5)
             if verbose>0: print "Mode of episode tracks was: "+str(mode)+"  "+str(maxl)
