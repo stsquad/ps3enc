@@ -311,7 +311,7 @@ that are compatible with the PS3 system media playback software
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:c", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon", "film", "bitrate=", "unit-tests"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:cf", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon", "film", "bitrate=", "unit-tests"])
     except getopt.GetoptError, err:
         usage()
 
