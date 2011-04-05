@@ -66,12 +66,19 @@ def guess_best_crop(file):
             p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
             (out, err) = p.communicate()
             m = re.search("\-vf crop=[-0123456789:]*", out)
-            try:
-                potential_crops[m.group(0)]+=1
-            except KeyError:
-                potential_crops[m.group(0)]=1
-                if verbose:
-                    print "Found:"+m.group(0)
+            if m:
+                try:
+                    potential_crops[m.group(0)]+=1
+                except KeyError:
+                    potential_crops[m.group(0)]=1
+                    if verbose: print "Found Crop:"+m.group(0)
+
+            m = re.search("(\d{2}\.\d*) fps", out)
+            if m:
+                global fps
+                fps = m.group(0).split(" ")[0]
+                print "Found FPS:"+fps
+
         except OSError:
             print "Failed to spawn: "+crop_cmd
 
@@ -213,7 +220,10 @@ def package_mp4(src_file, temp_dir, dest_dir):
 
 
     # Join the two together
-    mp4_join_cmd = mp4box_bin+" -add '"+audio_file+"' -add '"+video_file+"' '"+final_file+"'"
+    mp4_join_cmd = mp4box_bin+" "
+    if fps:
+        mp4_join_cmd = mp4_join_cmd+"-fps "+str(fps)+" "
+    mp4_join_cmd = mp4_join_cmd+" -add '"+audio_file+"' -add '"+video_file+"' '"+final_file+"'"
     if verbose:
         print "Running: "+mp4_join_cmd
     p = subprocess.Popen(mp4_join_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
