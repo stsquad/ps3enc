@@ -22,6 +22,7 @@ encode=True
 dvd=None
 nonav=False
 encode_options=""
+round_factor=6
 
 def process_track(ep, title, track):
     print "Ripping: %s" % (track)
@@ -104,12 +105,13 @@ def scan_dvd(dvdinfo, maxl):
             # all together lets try and be a bit more clever.
             rt = []
             for t in tracks:
-                tt = round_time(t['length'], 5)
+                tt = round_time(t['length'], round_factor)
                 if tt>0:
+                    if verbose>0: print "track %s (%d->%d)" % (t['ix'], t['length'], tt)
                     rt.append(tt)
             mode = get_mode_time(rt)
-            maxl  = mode + (60*5)
-            if verbose>0: print "Mode of episode tracks was: "+str(mode)+"  "+str(maxl)
+            maxl  = mode + (60*round_factor)
+            if verbose>0: print "Mode of episode tracks was: "+str(mode)+" with max time "+str(maxl)
         else:
             if verbose>0: print "Have specified longest track to be "+str(maxl)
 
@@ -119,8 +121,8 @@ def scan_dvd(dvdinfo, maxl):
 
         for t in tracks:
             length=t['length']
-            if verbose>0: print "Track: %s" % t
             if length>minl and length<=maxl:
+                if verbose>0: print "Ripping track: %s" % t
                 rip_tracks.append(t['ix'])
 
     return rip_tracks
