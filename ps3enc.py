@@ -33,6 +33,7 @@ subtitle=None
 package_only=False
 cartoon=False
 
+fps=None
 
 mplayer_bin="/usr/bin/mplayer"
 mencoder_bin="/usr/bin/mencoder"
@@ -103,6 +104,7 @@ def run_mencoder_command(command, dst_file):
         p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
         while p.returncode == None:
             status = p.stdout.readlines(4096)
+
             if status and progress==True:
                 line = status[-1]
                 if line.startswith("Pos:"):
@@ -344,7 +346,7 @@ if __name__ == "__main__":
         if o in ("-c", "--cartoon"):
             print "Setting cartoon presets"
             passes=1
-            bitrate=1000
+            bitrate=1500
             cartoon=True
         if o in ("-f", "--film"):
             bitrate=3000
