@@ -107,21 +107,22 @@ def scan_dvd(dvdinfo, maxl):
             for t in tracks:
                 tt = round_time(t['length'], round_factor)
                 if tt>0:
-                    if verbose>0: print "track %s (%d->%d)" % (t['ix'], t['length'], tt)
+                    if verbose>0: print "track %s (%d/%d->%d/%d)" % (t['ix'], t['length'], t['length']/60, tt, tt/60)
                     rt.append(tt)
             mode = get_mode_time(rt)
-            maxl  = mode + (60*round_factor)
+            maxl = mode + (2*60*round_factor)
+            minl = mode
             if verbose>0: print "Mode of episode tracks was: "+str(mode)+" with max time "+str(maxl)
         else:
             if verbose>0: print "Have specified longest track to be "+str(maxl)
+            minl=maxl*float(0.80)
 
-        minl=maxl*float(0.80)
 
         print "Looking for episodes between %f and %f seconds" % (maxl, minl)
 
         for t in tracks:
             length=t['length']
-            if length>minl and length<=maxl:
+            if length>=minl and length<=maxl:
                 if verbose>0: print "Ripping track: %s" % t
                 rip_tracks.append(t['ix'])
 
@@ -145,6 +146,7 @@ def usage():
     -e/--episodes     : disc contains episodes
     -1                : just rip longest track
     -m                : max length of episode (in minutes)
+    -f/--fuzzy        : time fuzziness (%d mins)
 
     Encoding Options (default: %s)
     -p/--passes=<passes>: override passes used by encode script
@@ -154,14 +156,14 @@ def usage():
     Special options
     --nonav           : don't use dvdnav, use dvd
 
-    """ % (encode_options)
+    """ % (round_factor, encode_options)
     return
 
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1rc",
-                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon"])
+        opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1rcf:",
+                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon", "fuzzy="])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -205,6 +207,8 @@ if __name__ == "__main__":
             dvd=a
         if o in ("--nonav"):
             nonav=True
+        if o in ("-f", "--fuzzy"):
+            round_factor = float(a)
 
 
     # if we haven't been told, guess which tracks to rip
