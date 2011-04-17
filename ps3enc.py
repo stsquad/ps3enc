@@ -23,7 +23,8 @@ import shutil
 import tempfile
 
 verbose=False
-bitrate=2000
+audio_bitrate=128
+video_bitrate=2000
 no_crop=False
 test=False
 progress=False
@@ -143,7 +144,7 @@ def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
     # audio encoding
     # cmd = cmd + " -oac " + oac_args
     if encode_audio:
-        cmd = cmd + " -oac faac -faacopts mpeg=4:object=2:br=128 "
+        cmd = cmd + " -oac faac -faacopts mpeg=4:object=2:br="+str(audio_bitrate)
     else:
         cmd = cmd + " -oac copy "
     # crop params
@@ -157,7 +158,7 @@ def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
         
     # x264 video encoding...
 # x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1"
-    cmd = cmd + " -ovc x264 -x264encopts bitrate="+str(bitrate)
+    cmd = cmd + " -ovc x264 -x264encopts bitrate="+str(video_bitrate)
     cmd = cmd + ":me=hex:nodct_decimate:nointerlaced:no8x8dct:nofast_pskip:trellis=1:partitions=p8x8,b8x8,i4x4"
     cmd = cmd + ":mixed_refs:keyint=300:keyint_min=30:psy_rd=0.8,0.2:frameref=3"
     cmd = cmd + ":bframes=3:b_adapt=2:b_pyramid=none:weight_b:weightp=1:direct_pred=spatial:subq=6"
@@ -346,10 +347,11 @@ if __name__ == "__main__":
         if o in ("-c", "--cartoon"):
             print "Setting cartoon presets"
             passes=1
-            bitrate=1500
+            video_bitrate=1500
             cartoon=True
         if o in ("-f", "--film"):
-            bitrate=3000
+            video_bitrate=3000
+            audio_bitrate=192
         if o in ("--bitrate"):
             bitrate=a
         if o in ("-t", "--test"):
