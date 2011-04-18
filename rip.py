@@ -22,7 +22,11 @@ encode=True
 dvd=None
 nonav=False
 encode_options=""
+
+# Round to nearest n minutes
 round_factor=6
+# Allow mode + round_fudge_factor * 60 * round_fudge_factor
+round_fudge_factor=2
 
 def process_track(ep, title, track):
     print "Ripping: %s" % (track)
@@ -110,7 +114,7 @@ def scan_dvd(dvdinfo, maxl):
                     if verbose>0: print "track %s (%d/%d->%d/%d)" % (t['ix'], t['length'], t['length']/60, tt, tt/60)
                     rt.append(tt)
             mode = get_mode_time(rt)
-            maxl = mode + (2*60*round_factor)
+            maxl = mode + (round_fudge_factor*60*round_factor)
             minl = mode
             if verbose>0: print "Mode of episode tracks was: "+str(mode)+" with max time "+str(maxl)
         else:
@@ -203,6 +207,7 @@ if __name__ == "__main__":
         if o in ("-p", "--passes"):
             encode_options += "-p %s " % (a)
         if o in ("-c", "--cartoon"):
+            round_fudge_factor = 1 # cartoons generally closer to ideal length
             encode_options += "--cartoon "
         if o in ("--film"):
             single_episode = True
