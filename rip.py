@@ -151,6 +151,7 @@ def usage():
     Encoding Options (default: %s)
     -p/--passes=<passes>: override passes used by encode script
     -c/--cartoon      : pass --cartoon to encode script
+    --film            : pass --film to encode script
 
 
     Special options
@@ -163,7 +164,7 @@ def usage():
 if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1rcf:",
-                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon", "fuzzy="])
+                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon", "fuzzy=", "film"])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -203,6 +204,9 @@ if __name__ == "__main__":
             encode_options += "-p %s " % (a)
         if o in ("-c", "--cartoon"):
             encode_options += "--cartoon "
+        if o in ("--film"):
+            single_episode = True
+            encode_options += "--film "
         if o in ("--dvd"):
             dvd=a
         if o in ("--nonav"):
