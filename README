@@ -10,26 +10,51 @@ There are currently two scripts
 rip.py
 ------
 
-The rip script is used to rip a DVD into 1-n separate VOB files. By
-default it will rip the longest track on the DVD (assuming it to be
-the main feature) and anything else within 80% of the size. This means
-by default it should correctly rip a number of episodes if the DVD is
-part of a TV box set. The exact threshold can be controlled by --max
-flag. Episodes will be numbered from 1 unless the -e flag specifies a
-new base.
+The rip script is used to rip a DVD into 1-n separate VOB files. It
+attempts to calculate this by looking for the model episode length
+after having rounded to the nearest 6 minutes. If you explicitly
+set the max times from the command line it will rip anything else
+within 80% of the size.
 
-Currently the script is hardwired to rip from /dev/dvd
+The aim of this is to make ripping fairly seamless when presented with
+a TV box set.
+
+Episodes will be numbered from 1 unless the -b flag specifies a
+new base.
 
 The script requires the "lsdvd" utility to be installed to get the
 chapter information from the DVD.
 
-Unless -l is specified the script will automatically kick of ps3enc.py
-to start encoding the VOB file. Otherwise the script will create a log
-of files ripped that can be passed to an encoding process as ripping 4
-episodes in one go on a single or duel core machine isn't actually
-that efficient.
+Unless -l/-r is specified the script will automatically kick of
+ps3enc.py to start encoding the VOB file. Otherwise the script will
+create a log of files ripped that can be passed to an encoding process
+as ripping 4 episodes in one go on a single or duel core machine isn't
+actually that efficient.
+
+See --help for all the command line options.
 
 ps3enc.py
 ---------
+
+This script encodes video files into PS3 compliant MP4 files. By
+default it does a 3 pass encode with a video bitrate of 2MBs.
+
+It has a couple of presets:
+
+  -c/--cartoon
+
+  Single pass, lower bitrate, enables a filter that seems to improve
+  encoding
+
+  --file
+
+  Higher video bitrate also increases the audio bitrate as films often
+  have quite a dense soundtrack which benefits from it.
+
+The script is optimised for my setup. The main I/O based one being
+doing all the temporary stuff on /tmp which on my 16GB machine is
+huge tmpfs partition. This means the encoding is rarely I/O bound
+which makes running multiple encodes less of a load on my machine
+(which is a 2 core + 2 thread i5 system). In practive
 
 
