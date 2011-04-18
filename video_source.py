@@ -22,20 +22,50 @@ import tempfile
 mplayer_bin="/usr/bin/mplayer"
 
 # This is for unit testing...
-test_output="""
-Trying demuxer 2 based on filename extension
-system stream synced at 0xD (13)!
-==> Found video stream: 0
-==> Found audio stream: 128
-==> Found audio stream: 129
-==> Found audio stream: 130
+ident_test_output="""
+MPlayer SVN-r33094-4.4.5 (C) 2000-2011 MPlayer Team
+Playing /home/alex/tmp/DEADWOOD_S3_D1-1/DEADWOOD_S3_D1-1.vob.
+ID_VIDEO_ID=0
+ID_AUDIO_ID=128
+ID_AUDIO_ID=129
+ID_AUDIO_ID=130
 MPEG-PS file format detected.
-Searching for sequence header... OK!
 VIDEO:  MPEG2  720x576  (aspect 3)  25.000 fps  9800.0 kbps (1225.0 kbyte/s)
-[V] filefmt:2  fourcc:0x10000002  size:720x576  fps:25.000  ftime:=0.0400
+Load subtitles in /home/alex/tmp/DEADWOOD_S3_D1-1/
+ID_FILENAME=/home/alex/tmp/DEADWOOD_S3_D1-1/DEADWOOD_S3_D1-1.vob
+ID_DEMUXER=mpegps
+ID_VIDEO_FORMAT=0x10000002
+ID_VIDEO_BITRATE=9800000
+ID_VIDEO_WIDTH=720
+ID_VIDEO_HEIGHT=576
+ID_VIDEO_FPS=25.000
+ID_VIDEO_ASPECT=0.0000
+ID_AUDIO_FORMAT=8192
+ID_AUDIO_BITRATE=0
+ID_AUDIO_RATE=0
+ID_AUDIO_NCH=0
+ID_START_TIME=0.29
+ID_LENGTH=2255.79
+ID_SEEKABLE=1
+ID_CHAPTERS=0
+==========================================================================
+Opening video decoder: [ffmpeg] FFmpeg's libavcodec codec family
+Selected video codec: [ffmpeg2] vfm: ffmpeg (FFmpeg MPEG-2)
+==========================================================================
+ID_VIDEO_CODEC=ffmpeg2
+==========================================================================
+Opening audio decoder: [ffmpeg] FFmpeg/libavcodec audio decoders
+AUDIO: 48000 Hz, 2 ch, s16le, 192.0 kbit/12.50% (ratio: 24000->192000)
+ID_AUDIO_BITRATE=192000
+ID_AUDIO_RATE=48000
+ID_AUDIO_NCH=2
+Selected audio codec: [ffac3] afm: ffmpeg (FFmpeg AC-3)
+==========================================================================
+AO: [pulse] 48000Hz 2ch s16le (2 bytes per sample)
+ID_AUDIO_CODEC=ffac3
 """
 
-test_crop_output="""
+crop_test_output="""
 A:   2.1 V:   2.1 A-V:  0.000 ct:  0.032  48/ 48  4%  5%  0.3% 0 0 
 [CROP] Crop area: X: 0..719  Y: 170..404  (-vf crop=720:224:0:176).
 A:   2.2 V:   2.2 A-V:  0.000 ct:  0.032  49/ 49  4%  5%  0.3% 0 0 
@@ -91,18 +121,29 @@ class video_source(object):
         (self.base, self.extension) = os.path.splitext(self.file)
 
     def __str__(self):
-        return "File: %s, crop(%s), %s FPS" % (self.file, self.crop_spec, self.fps)
+        return "File: %s, crop(%s), %s FPS, audio %s" % (self.file, self.crop_spec, self.fps, self.audio_tracks)
 
     def analyse_video(self):
-        if os.path.exists(path):
-            self.size = os.path.getsize(path)
+        if os.path.exists(self.path):
+            self.size = os.path.getsize(self.path)
+            self.identify_video()
             self.sample_video()
 
+    def identify_video(self):
+        ident_cmd = mplayer_bin+" -identify -frames 0 '"+self.path+"'"
+        if verbose: print "doing identify step: %s" % (ident_cmd)
+        try:
+            p = subprocess.Popen(ident_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+            (out, err) = p.communicate()
+            self.extract_fps(out)
+            self.extract_audio(out)
+        except OSError:
+                print "Failed to spawn: "+ident_cmd
 
     def extract_crop(self, out):
         """
         >>> x = video_source('/path/to/file')
-        >>> x.extract_crop(test_output)
+        >>> x.extract_crop(crop_test_output)
         >>> print x.fps
         25.000
         """
@@ -117,16 +158,27 @@ class video_source(object):
     def extract_fps(self, out):
         """
         >>> x = video_source('/path/to/file')
-        >>> x.extract_fps(test_output)
+        >>> x.extract_fps(ident_test_output)
         >>> print x.fps
         25.000
         """
-        m = re.search("(\d{2}\.\d*) fps", out)
+        m = re.search("ID_VIDEO_FPS=(\d{2}\.\d*)", out)
         if m:
-            self.fps = m.group(0).split(" ")[0]
+            self.fps = m.groups()[0]
+        else:
+            print "extract_fps: Failed to find FPS in (%s)" % (out)
         
     def extract_audio(self, out):
-        return
+        """
+        >>> x = video_source('/path/to/file')
+        >>> x.extract_audio(ident_test_output)
+        >>> print x.audio_tracks
+        ['128', '129', '130']
+        """
+        self.audio_tracks = re.findall("ID_AUDIO_ID=(\d+)", out)
+        if len(self.audio_tracks)==0:
+            print "extract_audio: Failed to find audio tracks in (%s)" % (out)
+            
 
     def sample_video(self):
         """
@@ -134,23 +186,20 @@ class video_source(object):
         """
         for i in range(0, self.size-self.size/20, self.size/20):
             crop_cmd = mplayer_bin+" -v -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+self.path+"'"
+            if verbose: print "doing sample step: %s" % (crop_cmd)
             try:
                 p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
                 (out, err) = p.communicate()
-                extract_crop(out)
-                if self.fps is None:
-                    extract_fps(out)
-                if len(self.audio_tracks)==0:
-                    extract_audio(out)
+                self.extract_crop(out)
 
             except OSError:
                 print "Failed to spawn: "+crop_cmd
 
         # most common crop?
         crop_count = 0
-        for crop  in potential_crops:
-            if potential_crops[crop] > crop_count:
-                crop_count = potential_crops[crop]
+        for crop  in self.potential_crops:
+            if self.potential_crops[crop] > crop_count:
+                crop_count = self.potential_crops[crop]
                 self.crop_spec = crop
 
         if verbose:
@@ -164,6 +213,7 @@ if __name__ == "__main__":
     except getopt.GetoptError, err:
         usage()
 
+    verbose=False
     for o,a in opts:
         if o in ("-v", "--verbose"):
             verbose=True
