@@ -22,6 +22,8 @@ import shlex
 import shutil
 import tempfile
 
+from video_source import video_source
+
 verbose=False
 audio_bitrate=128
 video_bitrate=2000
@@ -29,12 +31,13 @@ no_crop=False
 test=False
 progress=False
 debug=False
+
+audio_id=None
 language=None
 subtitle=None
+
 package_only=False
 cartoon=False
-
-fps=None
 
 mplayer_bin="/usr/bin/mplayer"
 mencoder_bin="/usr/bin/mencoder"
@@ -54,47 +57,6 @@ def calc_temp_pathspec(src_file, stage, temp_dir):
     final_path = temp_dir+"/"+base+"."+stage
     return final_path
 
-def guess_best_crop(file):
-    """
-    Calculate the best cropping parameters to use by looking over the whole file
-    """
-    size = os.path.getsize(file)
-    potential_crops = {}
-    for i in range(0, size-size/20, size/20):
-        crop_cmd = mplayer_bin+" -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+file+"'"
-#        if verbose:
-#            print "Running: "+crop_cmd
-        try:
-            p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-            (out, err) = p.communicate()
-            m = re.search("\-vf crop=[-0123456789:]*", out)
-            if m:
-                try:
-                    potential_crops[m.group(0)]+=1
-                except KeyError:
-                    potential_crops[m.group(0)]=1
-                    if verbose: print "Found Crop:"+m.group(0)
-
-            m = re.search("(\d{2}\.\d*) fps", out)
-            if m:
-                global fps
-                fps = m.group(0).split(" ")[0]
-                print "Found FPS:"+fps
-
-        except OSError:
-            print "Failed to spawn: "+crop_cmd
-
-    # most common crop?
-    crop_count = 0
-    for crop  in potential_crops:
-        if potential_crops[crop] > crop_count:
-            crop_count = potential_crops[crop]
-            crop_to_use = crop
-
-    if verbose:
-        print "Crop to use is:"+crop_to_use
-
-    return crop_to_use
 
 def run_mencoder_command(command, dst_file):
     if skip_encode and os.path.exists(dst_file):
@@ -155,6 +117,9 @@ def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
     # For cartoons post-processing median deinterlacer seems to help
     if cartoon:
         cmd = cmd + ",pp=md"
+
+    if audio_id:
+        cmd = cmd + " -aid "+audio_id
         
     # x264 video encoding...
 # x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1"
@@ -184,7 +149,7 @@ def do_encoding_pass(src_file, dst_file, crop, epass=1):
     encode_cmd = create_mencoder_cmd(src_file, dst_file, crop, True, epass)
     return run_mencoder_command(encode_cmd, dst_file)
 
-def package_mp4(src_file, temp_dir, dest_dir):
+def package_mp4(src_file, temp_dir, dest_dir, fps=None):
     """
     Package a given AVI file into clean MP4
     """
@@ -246,6 +211,9 @@ def package_mp4(src_file, temp_dir, dest_dir):
 def process_input(vob_file):
     if verbose: print "Handling: "+vob_file
 
+    video = video_source(vob_file, verbose)
+    video.analyse_video()
+
     # Save were we are
     (dir, file) = os.path.split(vob_file)
     (base, extension) = os.path.splitext(file)
@@ -261,7 +229,7 @@ def process_input(vob_file):
     if no_crop:
         crop = ""
     else:
-        crop = guess_best_crop(vob_file)
+        crop = video.crop_spec
 
     if verbose: print "Calculated crop of %s for %s" % (crop, vob_file)
 
@@ -282,7 +250,7 @@ def process_input(vob_file):
 
     if os.path.exists(ff):
         print "Final file is:"+ff
-        package_mp4(ff, temp_dir, dir)
+        package_mp4(ff, temp_dir, dir, video.fps)
         os.chdir(start_dir)
         if not debug:
             for tf in temp_files:
@@ -324,7 +292,7 @@ that are compatible with the PS3 system media playback software
 # Start of code
 if __name__ == "__main__":
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:cf", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon", "film", "bitrate=", "unit-tests"])
+        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:cf", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon", "film", "bitrate=", "unit-tests", "aid="])
     except getopt.GetoptError, err:
         usage()
 
@@ -360,6 +328,9 @@ if __name__ == "__main__":
             subtitle=a
         if o is ("--alang"):
             language=a
+        if o in ("--aid"):
+            print "setting audio ID to "+a
+            audio_id=a
         if o is ("--progress"):
             print "setting progress from (%s)" % (o)
             progress=True

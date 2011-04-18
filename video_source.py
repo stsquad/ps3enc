@@ -131,7 +131,7 @@ class video_source(object):
 
     def identify_video(self):
         ident_cmd = mplayer_bin+" -identify -frames 0 '"+self.path+"'"
-        if verbose: print "doing identify step: %s" % (ident_cmd)
+        if self.verbose: print "doing identify step: %s" % (ident_cmd)
         try:
             p = subprocess.Popen(ident_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
             (out, err) = p.communicate()
@@ -144,8 +144,7 @@ class video_source(object):
         """
         >>> x = video_source('/path/to/file')
         >>> x.extract_crop(crop_test_output)
-        >>> print x.fps
-        25.000
+        >>> print x.crop_spec
         """
         m = re.search("\-vf crop=[-0123456789:]*", out)
         if m:
@@ -186,7 +185,7 @@ class video_source(object):
         """
         for i in range(0, self.size-self.size/20, self.size/20):
             crop_cmd = mplayer_bin+" -v -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+self.path+"'"
-            if verbose: print "doing sample step: %s" % (crop_cmd)
+            if self.verbose: print "doing sample step: %s" % (crop_cmd)
             try:
                 p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
                 (out, err) = p.communicate()
@@ -202,8 +201,7 @@ class video_source(object):
                 crop_count = self.potential_crops[crop]
                 self.crop_spec = crop
 
-        if verbose:
-            print "Crop to use is:"+self.crop_spec
+        if self.verbose: print "sample_video: crop is "+self.crop_spec
 
 
 # Testing code
