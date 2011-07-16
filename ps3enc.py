@@ -25,6 +25,8 @@ import tempfile
 from video_source import video_source
 
 verbose=False
+verbose_level=0
+
 audio_bitrate=128
 video_bitrate=2000
 no_crop=False
@@ -209,9 +211,9 @@ def package_mp4(src_file, temp_dir, dest_dir, fps=None):
 
 # Process a single VOB file into final MP4
 def process_input(vob_file):
-    if verbose: print "Handling: "+vob_file
+    if verbose: print "process_input: "+vob_file
 
-    video = video_source(vob_file, verbose)
+    video = video_source(vob_file, (verbose_level>1))
     video.analyse_video()
 
     # Save were we are
@@ -304,6 +306,7 @@ if __name__ == "__main__":
             exit
         if o in ("-v", "--verbose"):
             verbose=True
+            verbose_level += 1
         if o in ("-d", "--debug"):
             debug=True
         if o in ("-n", "--no-crop"):
@@ -320,23 +323,25 @@ if __name__ == "__main__":
         if o in ("-f", "--film"):
             video_bitrate=3000
             audio_bitrate=192
-        if o in ("--bitrate"):
-            bitrate=a
         if o in ("-t", "--test"):
             test=True
-        if o is ("--slang"):
+
+        # Long options
+        if o.startswith("--bitrate"):
+            bitrate=a
+        if o.startswith("--slang"):
             subtitle=a
-        if o is ("--alang"):
+        if o.startswith("--alang"):
             language=a
-        if o in ("--aid"):
+        if o.startswith("--aid"):
             print "setting audio ID to "+a
             audio_id=a
-        if o is ("--progress"):
+        if o.startswith("--progress"):
             print "setting progress from (%s)" % (o)
             progress=True
-        if o is ("--pkg"):
+        if o.startswith("--pkg"):
             package_only=True
-        if o is ("--unit-tests"):
+        if o.startswith("--unit-tests"):
             import doctest
             doctest.testmod()
             exit()
@@ -349,8 +354,6 @@ if __name__ == "__main__":
         files.append(fp)
 
     for f in files:
-        if verbose: print "Processing: %s package only=%s" % (f, package_only)
-        
         if package_only:
             package_mp4(f)
         else:
