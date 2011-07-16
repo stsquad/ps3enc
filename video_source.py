@@ -116,7 +116,8 @@ class video_source(object):
         '.avi'
         """
         self.path = path
-        if (verbose): print "video_source(%s)" % (self.path)
+        self.verbose = verbose
+        if (self.verbose): print "video_source(%s)" % (self.path)
         (self.dir, self.file) = os.path.split(self.path)
         (self.base, self.extension) = os.path.splitext(self.file)
 
@@ -183,7 +184,7 @@ class video_source(object):
         """
         Calculate the best cropping parameters to use by looking over the whole file
         """
-        for i in range(0, self.size-self.size/20, self.size/20):
+        for i in range(0, self.size-self.size/60, self.size/60):
             crop_cmd = mplayer_bin+" -v -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+self.path+"'"
             if self.verbose: print "doing sample step: %s" % (crop_cmd)
             try:
