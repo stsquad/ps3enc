@@ -15,6 +15,7 @@ use_vlc=False
 log=None
 encode="list"
 single_episode=False
+scan_only=False
 ripdir=os.getenv("HOME")+"/tmp"
 base=1
 maxl=None
@@ -168,7 +169,7 @@ def usage():
 if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1rcf:",
-                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon", "fuzzy=", "film"])
+                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon", "fuzzy=", "film", "scan-only"])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -218,6 +219,8 @@ if __name__ == "__main__":
             nonav=True
         if o in ("-f", "--fuzzy"):
             round_factor = float(a)
+        if o in ("--scan-only"):
+            scan_only=True
 
 
     # if we haven't been told, guess which tracks to rip
@@ -234,6 +237,8 @@ if __name__ == "__main__":
         
         
     print "Ripping %d episodes" % (len(rip_tracks))
+    if scan_only:
+        exit(-len(rip_tracks))
 
     # If we haven't specified a log name then make one up
     if create_log:
