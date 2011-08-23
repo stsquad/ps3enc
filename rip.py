@@ -224,16 +224,15 @@ if __name__ == "__main__":
 
 
     # if we haven't been told, guess which tracks to rip
+    lsdvd="lsdvd -Oy "
+    if dvd: lsdvd += dvd
+    info=os.popen(lsdvd, "r").read()
+    dvdinfo=eval(info[8:])
+    tracks=dvdinfo['track']
+    title=dvdinfo['title']
+    
     if len(rip_tracks)==0:
-        lsdvd="lsdvd -Oy "
-        if dvd: lsdvd += dvd
-        info=os.popen(lsdvd, "r").read()
-        dvdinfo=eval(info[8:])
-        tracks=dvdinfo['track']
         rip_tracks = scan_dvd(dvdinfo, maxl)
-        title=dvdinfo['title']
-    else:
-        title = "dvd_track_"
         
         
     print "Ripping %d episodes" % (len(rip_tracks))
