@@ -102,6 +102,9 @@ def scan_dvd(dvdinfo, maxl):
     if single_episode:
         # 99% of the time the longest track is what you want
         lt=dvdinfo['longest_track']
+        for t in tracks:
+            if t['ix'] == lt:
+                if verbose>0: print "longest track %s (%d seconds/%d mins)" % (t['ix'], t['length'], t['length']/60)
         rip_tracks.append(lt)
     else:
         # Define our max criteria
