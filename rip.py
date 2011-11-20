@@ -222,6 +222,7 @@ if __name__ == "__main__":
             nonav=True
         if o in ("-f", "--fuzzy"):
             round_factor = float(a)
+            print "new round factor of %s" % (round_factor)
         if o in ("--scan-only"):
             scan_only=True
 
