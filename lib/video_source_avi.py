@@ -1,7 +1,8 @@
 #!/usr/bin/python
 #
-# Query a video file and pull out various bits of information that will be useful
-# for later encoding
+# Query an AVI file for track information
+#
+# Further more in-depth analysis can be done
 #
 # (C)opyright 2011 Alex Bennee <alex@bennee.com>
 #
@@ -81,18 +82,13 @@ A:   2.3 V:   2.3 A-V:  0.000 ct:  0.032  53/ 53  4%  5%  0.3% 0 0
 A:   2.4 V:   2.4 A-V:  0.000 ct:  0.032  54/ 54  4%  5%  0.3% 0 0
 """
 
-class video_source(object):
+from video_source import video_source
+
+
+class video_source_avi(video_source):
     """
-    A video source is a wrapper around a video file
+    A video source is a wrapper around an AVI file
     """
-    verbose=False
-    
-    # internal values, file related
-    dir=None
-    file=None
-    base=None
-    extension=None
-    size=None
 
     # mplayer parameters
     fps=None
@@ -103,26 +99,16 @@ class video_source(object):
     crop_spec=None
     potential_crops = {}
 
-    def __init__(self, path, verbose=False):
-        """
-        >>> x = video_source('/path/to/file.avi')
-        >>> x.dir
-        '/path/to'
-        >>> x.file
-        'file.avi'
-        >>> x.base
-        'file'
-        >>> x.extension
-        '.avi'
-        """
-        self.path = path
-        self.verbose = verbose
-        if (self.verbose): print "video_source(%s)" % (self.path)
-        (self.dir, self.file) = os.path.split(self.path)
-        (self.base, self.extension) = os.path.splitext(self.file)
-
     def __str__(self):
-        return "File: %s, crop(%s), %s FPS, audio %s" % (self.file, self.crop_spec, self.fps, self.audio_tracks)
+        """
+        Our string representation
+        """
+        results = super(self.__class__,self).__str__().split(", ")
+        if len(self.audio_tracks)>0:
+            results.append("Audio tracks: %d" % (len(self.audio_tracks)))
+
+        return ", ".join(results)
+        
 
     def analyse_video(self):
         if os.path.exists(self.path):
@@ -138,12 +124,14 @@ class video_source(object):
             (out, err) = p.communicate()
             self.extract_fps(out)
             self.extract_audio(out)
+            self.extract_video_codec(out)
+            self.extract_audio_codec(out)
         except OSError:
                 print "Failed to spawn: "+ident_cmd
 
     def extract_crop(self, out):
         """
-        >>> x = video_source('/path/to/file')
+        >>> x = video_source_avi('/path/to/file')
         >>> x.extract_crop(crop_test_output)
         >>> print x.crop_spec
         """
@@ -157,7 +145,7 @@ class video_source(object):
         
     def extract_fps(self, out):
         """
-        >>> x = video_source('/path/to/file')
+        >>> x = video_source_avi('/path/to/file')
         >>> x.extract_fps(ident_test_output)
         >>> print x.fps
         25.000
@@ -167,10 +155,23 @@ class video_source(object):
             self.fps = m.groups()[0]
         else:
             print "extract_fps: Failed to find FPS in (%s)" % (out)
-        
+
+    def extract_video_codec(self, out):
+        """
+        >>> x = video_source_avi('/path/to/file')
+        >>> x.extract_video_codec(ident_test_output)
+        >>> print x.video_codec
+        ffmpeg2
+        """
+        m = re.search("ID_VIDEO_CODEC=(\w+)", out)
+        if m:
+            self.video_codec = m.groups()[0]
+        else:
+            print "extract_video_codec: Failed to find VIDEO in (%s)" % (out)
+
     def extract_audio(self, out):
         """
-        >>> x = video_source('/path/to/file')
+        >>> x = video_source_avi('/path/to/file')
         >>> x.extract_audio(ident_test_output)
         >>> print x.audio_tracks
         ['128', '129', '130']
@@ -179,6 +180,19 @@ class video_source(object):
         if len(self.audio_tracks)==0:
             print "extract_audio: Failed to find audio tracks in (%s)" % (out)
             
+
+    def extract_audio_codec(self, out):
+        """
+        >>> x = video_source_avi('/path/to/file')
+        >>> x.extract_audio_codec(ident_test_output)
+        >>> print x.audio_codec
+        ffac3
+        """
+        m = re.search("ID_AUDIO_CODEC=(\w+)", out)
+        if m:
+            self.audio_codec = m.groups()[0]
+        else:
+            print "extract_audio_codec: Failed to find AUDIO in (%s)" % (out)
 
     def sample_video(self):
         """
@@ -205,23 +219,20 @@ class video_source(object):
         if self.verbose: print "sample_video: crop is "+self.crop_spec
 
 
+
 # Testing code
 if __name__ == "__main__":
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "v", ["verbose"])
-    except getopt.GetoptError, err:
-        usage()
-
-    verbose=False
-    for o,a in opts:
-        if o in ("-v", "--verbose"):
-            verbose=True
+    from video_source import video_options
+    (parser, options, args) = video_options()
 
     if len(args)>=1:
         for a in args:
             fp = os.path.realpath(a)
-            v = video_source(fp, verbose)
-            v.analyse_video()
+            v = video_source_avi(fp, options.verbose)
+            if options.identify:
+                v.identify_video()
+            if options.analyse:
+                v.analyse_video()
             print v
     else:
         import doctest
