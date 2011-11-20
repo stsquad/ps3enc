@@ -50,6 +50,9 @@ class video_source(object):
         (self.dir, self.file) = os.path.split(self.path)
         (self.base, self.extension) = os.path.splitext(self.file)
 
+    def filepath(self):
+        return "%s/%s" % (self.dir, self.file)
+
     def __str__(self):
         result = ["File: %s" % (self.file)]
         if self.video_codec:
@@ -64,6 +67,17 @@ class video_source(object):
         return ", ".join(result)
 
 
+#
+# Video source factory
+#
+from video_source_avi import video_source_avi
+#from video_source_mkv import video_source_mkv
+
+def get_video_source(filename):
+    if filename.endswith("avi"):
+        return video_source_avi(filename)
+    else:
+        return None
 
 #
 # Shared option code
