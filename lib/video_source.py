@@ -73,9 +73,11 @@ class video_source(object):
 from video_source_avi import video_source_avi
 #from video_source_mkv import video_source_mkv
 
-def get_video_source(filename):
+def get_video_source(filename, verbose=False):
     if filename.endswith("avi"):
-        return video_source_avi(filename)
+        return video_source_avi(filename, verbose)
+    elif filename.endswith("vob"):
+        return video_source_avi(filename, verbose)
     else:
         return None
 

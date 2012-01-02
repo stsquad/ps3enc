@@ -22,7 +22,17 @@ import shlex
 import shutil
 import tempfile
 
-from video_source import video_source
+# Handy for running in place
+from os.path import realpath,dirname
+script=realpath(sys.argv[0])
+devlibs=dirname(script)+"/lib"
+if os.path.exists(devlibs):
+    print "Adding "+devlibs+" to path"
+    sys.path.insert(0, devlibs)
+else:
+    print "sys.argv[0] is %s" % (realpath(dirname(sys.argv[0])))
+
+from video_source import get_video_source
 
 verbose=False
 verbose_level=0
@@ -213,7 +223,7 @@ def package_mp4(src_file, temp_dir, dest_dir, fps=None):
 def process_input(vob_file):
     if verbose: print "process_input: "+vob_file
 
-    video = video_source(vob_file, (verbose_level>1))
+    video = get_video_source(vob_file, (verbose_level>1))
     video.analyse_video()
 
     # Save were we are
