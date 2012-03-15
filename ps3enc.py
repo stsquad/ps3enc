@@ -59,6 +59,13 @@ me=os.path.basename(sys.argv[0])
 passes=3
 skip_encode=False
 
+# Some exceptions
+class MencoderError(Exception):
+    def __init__(self, reason):
+        self.reason = reason
+    def __str__(self):
+        return repr(self.reason)
+
 def calc_temp_pathspec(src_file, stage, temp_dir):
     """
     >>> calc_temp_pathspec('/home/alex/tmp/video/something.vob', 'turbo.avi', '/tmp/tmpdir_xxx')
@@ -92,14 +99,12 @@ def run_mencoder_command(command, dst_file):
         # Grab final bits
         (out, err) = p.communicate()
         if p.returncode != 0:
-            print "Failed (%d/%s)" % (p.returncode, out)
-            return None
+            raise MencoderError("mencoder failed ((%d/%s)" % (p.returncode, out))
 
     if os.path.exists(dst_file):
         return dst_file
     else:
-        print "No resulting file "+dst_file
-        return None
+        raise MencoderError("Missing output file: %s" % dst_file)
 
 def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
     """
@@ -245,31 +250,31 @@ def process_input(vob_file):
 
     if verbose: print "Calculated crop of %s for %s" % (crop, vob_file)
 
-    if passes>1:
-        tf = calc_temp_pathspec(vob_file, "turbo.avi", temp_dir)
-        temp_files.append(do_turbo_pass(vob_file, tf, crop))
-        for i in range(2, passes+1):
-            tf = calc_temp_pathspec(vob_file, "pass"+str(i)+".avi", temp_dir)
-            temp_files.append(do_encoding_pass(vob_file, tf, crop, 3))
-    else:
-        tf = calc_temp_pathspec(vob_file, "singlepass.avi", temp_dir)
-        temp_files.append(do_encoding_pass(vob_file, tf, crop))
+    try:
+        if passes>1:
+            tf = calc_temp_pathspec(vob_file, "turbo.avi", temp_dir)
+            temp_files.append(do_turbo_pass(vob_file, tf, crop))
+            for i in range(2, passes+1):
+                tf = calc_temp_pathspec(vob_file, "pass"+str(i)+".avi", temp_dir)
+                temp_files.append(do_encoding_pass(vob_file, tf, crop, 3))
+        else:
+            tf = calc_temp_pathspec(vob_file, "singlepass.avi", temp_dir)
+            temp_files.append(do_encoding_pass(vob_file, tf, crop))
 
 
-    ff = temp_files[-1]
-    if verbose: print "Final encode of %s is %s" % (vob_file, ff)
+        ff = temp_files[-1]
+        if verbose: print "Final encode of %s is %s" % (vob_file, ff)
 
-
-    if os.path.exists(ff):
-        print "Final file is:"+ff
-        package_mp4(ff, temp_dir, dir, video.fps)
-        os.chdir(start_dir)
-        if not debug:
-            for tf in temp_files:
-                os.unlink(tf)
-            shutil.rmtree(temp_dir)
-    else:
-        print "Cannot package, no file encoded"
+        if os.path.exists(ff):
+            print "Final file is:"+ff
+            package_mp4(ff, temp_dir, dir, video.fps)
+            os.chdir(start_dir)
+            if not debug:
+                for tf in temp_files:
+                    os.unlink(tf)
+                    shutil.rmtree(temp_dir)
+    except MencoderError as e:
+        print "error: %s" % str(e);
 
 
 def usage():
