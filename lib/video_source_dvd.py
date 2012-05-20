@@ -1,10 +1,10 @@
 #!/usr/bin/python
 #
-# Query an AVI file for track information
+# Query an DVD for track information
 #
 # Further more in-depth analysis can be done
 #
-# (C)opyright 2011 Alex Bennee <alex@bennee.com>
+# (C)opyright 2012 Alex Bennee <alex@bennee.com>
 #
 # Licenced under the GPL version 3 Which means no warrenty! Break it
 # you get to keep both pieces, fix it then please send me the glue :-)
@@ -19,6 +19,11 @@ import sys
 import shlex
 import shutil
 import tempfile
+import signal
+
+# for timeouts
+class Alarm(Exception):
+    pass
 
 mplayer_bin="/usr/bin/mplayer"
 
@@ -85,122 +90,34 @@ A:   2.4 V:   2.4 A-V:  0.000 ct:  0.032  54/ 54  4%  5%  0.3% 0 0
 from video_source_mplayer import video_source_mplayer
 
 
-class video_source_avi(video_source_mplayer):
+class video_source_dvd(video_source_mplayer):
     """
-    A video source is a wrapper around an AVI file
+    A video source is a wrapper around direct DVD access
     """
 
-    # mplayer parameters
-    fps=None
+    def _alarm_handler(self, signum, frame):
+        raise Alarm
+    
+    def __init__(self, path, verbose=False):
+        """
+        >>> x = video_source_dvd('dvd://2')
+        >>> x.track
+        2
+        """
+        self.path = path
+        self.verbose = verbose
+        if (self.verbose): print "video_source(%s)" % (self.path)
 
-    audio_tracks = []
-
-    # Crop calculation
-    crop_spec=None
-    potential_crops = {}
-
-    def __str__(self):
-        """
-        Our string representation
-        """
-        results = super(self.__class__,self).__str__().split(", ")
-        if len(self.audio_tracks)>0:
-            results.append("Audio tracks: %d" % (len(self.audio_tracks)))
-
-        return ", ".join(results)
-        
-
-    def analyse_video(self):
-        if os.path.exists(self.path):
-            self.size = os.path.getsize(self.path)
-        else:
-            self.size = 100000
-        super(self.__class__,self).analyse_video(self)
-
-    def identify_video(self):
-        ident_cmd = mplayer_bin+" -identify -frames 0 '"+self.path+"'"
-        if self.verbose: print "doing identify step: %s" % (ident_cmd)
-        try:
-            p = subprocess.Popen(ident_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-            (out, err) = p.communicate()
-            self.extract_fps(out)
-            self.extract_audio(out)
-            self.extract_video_codec(out)
-            self.extract_audio_codec(out)
-        except OSError:
-                print "Failed to spawn: "+ident_cmd
-
-    def extract_crop(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_crop(crop_test_output)
-        >>> print x.crop_spec
-        """
-        m = re.search("\-vf crop=[-0123456789:]*", out)
-        if m:
-            try:
-                self.potential_crops[m.group(0)]+=1
-            except KeyError:
-                self.potential_crops[m.group(0)]=1
-                if self.verbose: print "Found Crop:"+m.group(0)
-        
-    def extract_fps(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_fps(ident_test_output)
-        >>> print x.fps
-        25.000
-        """
-        m = re.search("ID_VIDEO_FPS=(\d{2}\.\d*)", out)
-        if m:
-            self.fps = m.groups()[0]
-        else:
-            print "extract_fps: Failed to find FPS in (%s)" % (out)
-
-    def extract_video_codec(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_video_codec(ident_test_output)
-        >>> print x.video_codec
-        ffmpeg2
-        """
-        m = re.search("ID_VIDEO_CODEC=(\w+)", out)
-        if m:
-            self.video_codec = m.groups()[0]
-        else:
-            print "extract_video_codec: Failed to find VIDEO in (%s)" % (out)
-
-    def extract_audio(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_audio(ident_test_output)
-        >>> print x.audio_tracks
-        ['128', '129', '130']
-        """
-        self.audio_tracks = re.findall("ID_AUDIO_ID=(\d+)", out)
-        if len(self.audio_tracks)==0:
-            print "extract_audio: Failed to find audio tracks in (%s)" % (out)
-            
-
-    def extract_audio_codec(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_audio_codec(ident_test_output)
-        >>> print x.audio_codec
-        ffac3
-        """
-        m = re.search("ID_AUDIO_CODEC=(\w+)", out)
-        if m:
-            self.audio_codec = m.groups()[0]
-        else:
-            print "extract_audio_codec: Failed to find AUDIO in (%s)" % (out)
 
     def sample_video(self):
         """
         Calculate the best cropping parameters to use by looking over the whole file
         """
-        for i in range(0, self.size-self.size/60, self.size/60):
-            crop_cmd = mplayer_bin+" -v -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+self.path+"'"
+        signal.signal(signal.SIGALRM, self._alarm_handler)
+
+        for i in range(0, 60, 10):
+            signal.alarm(30)  
+            crop_cmd = mplayer_bin+" -v -nosound -vo null -ss 00:"+str(i)+" -frames 10 -vf cropdetect '"+self.path+"'"
             if self.verbose: print "doing sample step: %s" % (crop_cmd)
             try:
                 p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
@@ -209,6 +126,10 @@ class video_source_avi(video_source_mplayer):
 
             except OSError:
                 print "Failed to spawn: "+crop_cmd
+            except Alarm:
+                print "Oops, taking too long!"
+
+        signal.alarm(0)  # reset the alarm
 
         # most common crop?
         crop_count = 0
@@ -229,10 +150,7 @@ if __name__ == "__main__":
     if len(args)>=1:
         for a in args:
             if a.startswith("dvd://"):
-                v = video_source_avi(a, options.verbose)
-            else:
-                fp = os.path.realpath(a)
-                v = video_source_avi(fp, options.verbose)
+                v = video_source_dvd(a, options.verbose)
             if options.identify:
                 v.identify_video()
             if options.analyse:

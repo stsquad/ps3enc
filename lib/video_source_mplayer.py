@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Query an AVI file for track information
+# Query an media file via mplayer
 #
 # Further more in-depth analysis can be done
 #
@@ -82,12 +82,12 @@ A:   2.3 V:   2.3 A-V:  0.000 ct:  0.032  53/ 53  4%  5%  0.3% 0 0
 A:   2.4 V:   2.4 A-V:  0.000 ct:  0.032  54/ 54  4%  5%  0.3% 0 0
 """
 
-from video_source_mplayer import video_source_mplayer
+from video_source import video_source
 
 
-class video_source_avi(video_source_mplayer):
+class video_source_mplayer(video_source):
     """
-    A video source is a wrapper around an AVI file
+    A video source is a wrapper around an media file mplayer understands
     """
 
     # mplayer parameters
@@ -99,23 +99,9 @@ class video_source_avi(video_source_mplayer):
     crop_spec=None
     potential_crops = {}
 
-    def __str__(self):
-        """
-        Our string representation
-        """
-        results = super(self.__class__,self).__str__().split(", ")
-        if len(self.audio_tracks)>0:
-            results.append("Audio tracks: %d" % (len(self.audio_tracks)))
-
-        return ", ".join(results)
-        
-
     def analyse_video(self):
-        if os.path.exists(self.path):
-            self.size = os.path.getsize(self.path)
-        else:
-            self.size = 100000
-        super(self.__class__,self).analyse_video(self)
+        self.identify_video()
+        self.sample_video()
 
     def identify_video(self):
         ident_cmd = mplayer_bin+" -identify -frames 0 '"+self.path+"'"
@@ -132,7 +118,7 @@ class video_source_avi(video_source_mplayer):
 
     def extract_crop(self, out):
         """
-        >>> x = video_source_avi('/path/to/file')
+        >>> x = video_source_mplayer('/path/to/file')
         >>> x.extract_crop(crop_test_output)
         >>> print x.crop_spec
         """
@@ -146,7 +132,7 @@ class video_source_avi(video_source_mplayer):
         
     def extract_fps(self, out):
         """
-        >>> x = video_source_avi('/path/to/file')
+        >>> x = video_source_mplayer('/path/to/file')
         >>> x.extract_fps(ident_test_output)
         >>> print x.fps
         25.000
@@ -159,7 +145,7 @@ class video_source_avi(video_source_mplayer):
 
     def extract_video_codec(self, out):
         """
-        >>> x = video_source_avi('/path/to/file')
+        >>> x = video_source_mplayer('/path/to/file')
         >>> x.extract_video_codec(ident_test_output)
         >>> print x.video_codec
         ffmpeg2
@@ -172,7 +158,7 @@ class video_source_avi(video_source_mplayer):
 
     def extract_audio(self, out):
         """
-        >>> x = video_source_avi('/path/to/file')
+        >>> x = video_source_mplayer('/path/to/file')
         >>> x.extract_audio(ident_test_output)
         >>> print x.audio_tracks
         ['128', '129', '130']
@@ -184,7 +170,7 @@ class video_source_avi(video_source_mplayer):
 
     def extract_audio_codec(self, out):
         """
-        >>> x = video_source_avi('/path/to/file')
+        >>> x = video_source_mplayer('/path/to/file')
         >>> x.extract_audio_codec(ident_test_output)
         >>> print x.audio_codec
         ffac3
@@ -229,10 +215,10 @@ if __name__ == "__main__":
     if len(args)>=1:
         for a in args:
             if a.startswith("dvd://"):
-                v = video_source_avi(a, options.verbose)
+                v = video_source_mplayer(a, options.verbose)
             else:
                 fp = os.path.realpath(a)
-                v = video_source_avi(fp, options.verbose)
+                v = video_source_mplayer(fp, options.verbose)
             if options.identify:
                 v.identify_video()
             if options.analyse:

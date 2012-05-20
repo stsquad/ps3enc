@@ -32,7 +32,7 @@ if os.path.exists(devlibs):
 else:
     print "sys.argv[0] is %s" % (realpath(dirname(sys.argv[0])))
 
-from video_source import get_video_source
+from video_source_factory import get_video_source
 
 verbose=False
 verbose_level=0
@@ -365,9 +365,12 @@ if __name__ == "__main__":
     # Calculate the full paths ahead of time (lest cwd changes)
     files = []
     for a in args:
-        fp = os.path.realpath(a)
-        files.append(fp)
-
+        if a.startswith("dvd://"):
+            files.append(a)
+        else:
+            fp = os.path.realpath(a)
+            files.append(fp)
+ 
     for f in files:
         if package_only:
             package_mp4(f)
