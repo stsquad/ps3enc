@@ -2,7 +2,10 @@
 #
 # Query an DVD for track information
 #
-# Further more in-depth analysis can be done
+# This is only really useful when we have failed to rip the VOB file for
+# off-line ripping. There are some cases where mplayer/mencoder can play
+# the direct stream fine but fail when trying to dump the stream. This
+# analyser is to support ripping in this case
 #
 # (C)opyright 2012 Alex Bennee <alex@bennee.com>
 #
@@ -27,68 +30,46 @@ class Alarm(Exception):
 
 mplayer_bin="/usr/bin/mplayer"
 
-# This is for unit testing...
-ident_test_output="""
-MPlayer SVN-r33094-4.4.5 (C) 2000-2011 MPlayer Team
-Playing /home/alex/tmp/DEADWOOD_S3_D1-1/DEADWOOD_S3_D1-1.vob.
-ID_VIDEO_ID=0
-ID_AUDIO_ID=128
-ID_AUDIO_ID=129
-ID_AUDIO_ID=130
-MPEG-PS file format detected.
-VIDEO:  MPEG2  720x576  (aspect 3)  25.000 fps  9800.0 kbps (1225.0 kbyte/s)
-Load subtitles in /home/alex/tmp/DEADWOOD_S3_D1-1/
-ID_FILENAME=/home/alex/tmp/DEADWOOD_S3_D1-1/DEADWOOD_S3_D1-1.vob
-ID_DEMUXER=mpegps
-ID_VIDEO_FORMAT=0x10000002
-ID_VIDEO_BITRATE=9800000
-ID_VIDEO_WIDTH=720
-ID_VIDEO_HEIGHT=576
-ID_VIDEO_FPS=25.000
-ID_VIDEO_ASPECT=0.0000
-ID_AUDIO_FORMAT=8192
-ID_AUDIO_BITRATE=0
-ID_AUDIO_RATE=0
-ID_AUDIO_NCH=0
-ID_START_TIME=0.29
-ID_LENGTH=2255.79
-ID_SEEKABLE=1
-ID_CHAPTERS=0
-==========================================================================
-Opening video decoder: [ffmpeg] FFmpeg's libavcodec codec family
-Selected video codec: [ffmpeg2] vfm: ffmpeg (FFmpeg MPEG-2)
-==========================================================================
-ID_VIDEO_CODEC=ffmpeg2
-==========================================================================
-Opening audio decoder: [ffmpeg] FFmpeg/libavcodec audio decoders
-AUDIO: 48000 Hz, 2 ch, s16le, 192.0 kbit/12.50% (ratio: 24000->192000)
-ID_AUDIO_BITRATE=192000
-ID_AUDIO_RATE=48000
-ID_AUDIO_NCH=2
-Selected audio codec: [ffac3] afm: ffmpeg (FFmpeg AC-3)
-==========================================================================
-AO: [pulse] 48000Hz 2ch s16le (2 bytes per sample)
-ID_AUDIO_CODEC=ffac3
-"""
-
 crop_test_output="""
-A:   2.1 V:   2.1 A-V:  0.000 ct:  0.032  48/ 48  4%  5%  0.3% 0 0 
-[CROP] Crop area: X: 0..719  Y: 170..404  (-vf crop=720:224:0:176).
-A:   2.2 V:   2.2 A-V:  0.000 ct:  0.032  49/ 49  4%  5%  0.3% 0 0 
-[CROP] Crop area: X: 0..719  Y: 120..453  (-vf crop=720:320:0:128).
-A:   2.2 V:   2.2 A-V:  0.000 ct:  0.032  50/ 50  4%  5%  0.3% 0 0 
-[CROP] Crop area: X: 0..719  Y: 77..499  (-vf crop=720:416:0:82).
-A:   2.2 V:   2.2 A-V:  0.002 ct:  0.032  51/ 51  4%  5%  0.3% 0 0 
-[CROP] Crop area: X: 0..719  Y: 0..573  (-vf crop=720:560:0:8).
-A:   2.3 V:   2.3 A-V:  0.000 ct:  0.032  52/ 52  4%  5%  0.3% 0 0 
-[CROP] Crop area: X: 0..719  Y: 0..573  (-vf crop=720:560:0:8).
-A:   2.3 V:   2.3 A-V:  0.000 ct:  0.032  53/ 53  4%  5%  0.3% 0 0 
-[CROP] Crop area: X: 0..719  Y: 0..573  (-vf crop=720:560:0:8).
-A:   2.4 V:   2.4 A-V:  0.000 ct:  0.032  54/ 54  4%  5%  0.3% 0 0
+[CROP] Crop area: X: 7..712  Y: 77..492  (-vf crop=704:400:8:86).
+V: 566.7 14164/14164  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..492  (-vf crop=704:400:8:86).
+V: 566.8 14165/14165  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..492  (-vf crop=704:400:8:86).
+V: 566.8 14166/14166  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..492  (-vf crop=704:400:8:86).
+V: 566.8 14167/14167  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..492  (-vf crop=704:400:8:86).
+V: 566.9 14168/14168  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..492  (-vf crop=704:400:8:86).
+V: 566.9 14169/14169  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..492  (-vf crop=704:400:8:86).
+V: 567.0 14170/14170  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.6 14185/14185  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.6 14186/14186  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.6 14187/14187  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.7 14188/14188  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.7 14189/14189  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.8 14190/14190  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.8 14191/14191  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.8 14192/14192  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.9 14193/14193  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 567.9 14194/14194  3%  0%  0.0% 0 0 
+[CROP] Crop area: X: 7..712  Y: 77..494  (-vf crop=704:416:8:78).
+V: 568.0 14195/14195  3%  0%  0.0% 0 0 
 """
 
 from video_source_mplayer import video_source_mplayer
-
 
 class video_source_dvd(video_source_mplayer):
     """
@@ -109,31 +90,42 @@ class video_source_dvd(video_source_mplayer):
         if (self.verbose): print "video_source(%s)" % (self.path)
 
 
+    def extract_crop(self, out):
+        """
+        >>> x = video_source_dvd('/path/to/file')
+        >>> x.extract_crop(crop_test_output)
+        >>> print x.crop_spec
+        "-vf crop=704:416:8:78"
+        """
+        m = re.findall("\-vf crop=[-0123456789:]*", out)
+        if m:
+            total = len(m)
+            keep = int(total/2)
+            film_matches = m[keep:]
+            if self.verbose: print "found %d crop descriptions, keeping %d" % (total, keep)
+            for match in film_matches:
+                try:
+                    self.potential_crops[match]+=1
+                except KeyError:
+                    self.potential_crops[match]=1
+        
     def sample_video(self):
         """
         Calculate the best cropping parameters to use by looking over the whole file
         """
         signal.signal(signal.SIGALRM, self._alarm_handler)
 
-        for i in range(0, 60, 10):
-            signal.alarm(30)  
-            crop_cmd = mplayer_bin+" -v -nosound -vo null -ss 00:"+str(i)+" -frames 10 -vf cropdetect '"+self.path+"'"
-            if self.verbose: print "doing sample step: %s" % (crop_cmd)
-            try:
-                p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-                (out, err) = p.communicate()
-                self.extract_crop(out)
-
-            except OSError:
-                print "Failed to spawn: "+crop_cmd
-            except Alarm:
-                print "Oops, taking too long!"
-
-        signal.alarm(0)  # reset the alarm
+        crop_cmd = mplayer_bin+" -v -nosound -vo null -endpos 10:00 -vf cropdetect '"+self.path+"'"
+        if self.verbose: print "doing sample step: %s" % (crop_cmd)
+        p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+        (out, err) = p.communicate()
+        print "out=%s" % (out)
+        self.extract_crop(out)
 
         # most common crop?
         crop_count = 0
         for crop  in self.potential_crops:
+            print "checking crop: %s" % (crop)
             if self.potential_crops[crop] > crop_count:
                 crop_count = self.potential_crops[crop]
                 self.crop_spec = crop
