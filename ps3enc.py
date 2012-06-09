@@ -21,6 +21,7 @@ import sys
 import shlex
 import shutil
 import tempfile
+from datetime import date
 
 # Handy for running in place
 from os.path import realpath,dirname
@@ -232,8 +233,12 @@ def process_input(vob_file):
     video.analyse_video()
 
     # Save were we are
-    (dir, file) = os.path.split(vob_file)
-    (base, extension) = os.path.splitext(file)
+    if vob_file.startswith("dvd://"):
+        dir="%s/tmp/encode_%s" % (os.getenv("HOME"), date.today())
+        os.mkdir(dir)
+    else:
+        (dir, file) = os.path.split(vob_file)
+        (base, extension) = os.path.splitext(file)
 
     start_dir = os.getcwd()
     
