@@ -108,14 +108,11 @@ class video_source_avi(video_source_mplayer):
             results.append("Audio tracks: %d" % (len(self.audio_tracks)))
 
         return ", ".join(results)
-        
 
     def analyse_video(self):
         if os.path.exists(self.path):
             self.size = os.path.getsize(self.path)
-        else:
-            self.size = 100000
-        super(self.__class__,self).analyse_video(self)
+        super(self.__class__,self).analyse_video()
 
     def identify_video(self):
         ident_cmd = mplayer_bin+" -identify -frames 0 '"+self.path+"'"
