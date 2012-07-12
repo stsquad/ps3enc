@@ -23,11 +23,17 @@ encode=True
 dvd=None
 nonav=False
 encode_options=""
+direct_encode=False
 
 # Round to nearest n minutes
 round_factor=6
 # Allow mode + round_fudge_factor * 60 * round_fudge_factor
 round_fudge_factor=2
+
+def encode_track(path):
+    enc_cmd = "ps3enc.py -v %s %s" % (path, encode_options)
+    if verbose>0: print "cmd: %s" % (enc_cmd)
+    os.system(enc_cmd)
 
 def process_track(ep, title, track):
     print "Ripping: %s" % (track)
@@ -164,6 +170,7 @@ def usage():
 
     Special options
     --nonav           : don't use dvdnav, use dvd
+    --direct          : assume 1 pass film, encode straight from dvd
 
     """ % (round_factor, encode_options)
     return
@@ -172,7 +179,7 @@ def usage():
 if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1rcf:",
-                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon", "fuzzy=", "film", "scan-only"])
+                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon", "fuzzy=", "film", "scan-only", "direct"])
     except getopt.GetoptError, err:
         usage()
         sys.exit(1)
@@ -220,6 +227,10 @@ if __name__ == "__main__":
             dvd=a
         if o in ("--nonav"):
             nonav=True
+        if o in ("--direct"):
+            direct_encode = True
+            single_episode = True
+            encode_options += "--film -p 1 "
         if o in ("-f", "--fuzzy"):
             round_factor = float(a)
             print "new round factor of %s" % (round_factor)
@@ -257,8 +268,12 @@ if __name__ == "__main__":
 
     
     for t in rip_tracks:
-        process_track(base, title, t)
+        if direct_encode:
+            encode_track("dvd://%d" % (t))
+        else:
+            process_track(base, title, t)
         base=base+1
             
     # Eject the DVD
-    os.system("eject")
+    if not direct_encode:
+        os.system("eject")
