@@ -120,7 +120,7 @@ def scan_dvd(dvdinfo, maxl):
             rt = []
             for t in tracks:
                 tt = round_time(t['length'], round_factor)
-                if tt>0:
+                if tt>0 and tt<(60*120):
                     if verbose>0: print "track %s (%d/%d->%d/%d)" % (t['ix'], t['length'], t['length']/60, tt, tt/60)
                     rt.append(tt)
             mode = get_mode_time(rt)
