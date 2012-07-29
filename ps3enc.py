@@ -277,7 +277,7 @@ def process_input(vob_file):
             if not debug:
                 for tf in temp_files:
                     os.unlink(tf)
-                    shutil.rmtree(temp_dir)
+                shutil.rmtree(temp_dir)
     except MencoderError as e:
         print "error: %s" % str(e);
 
