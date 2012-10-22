@@ -61,6 +61,8 @@ class video_source(object):
             result.append("Video: %s" % (self.video_codec))
         if self.audio_codec:
             result.append("Audio: %s" % (self.audio_codec))
+        if self.audio_tracks:
+            result.append("Tracks: %s" % (self.audio_tracks))
         if self.crop_spec:
             result.append("Crop: %s" % (self.crop_spec))
         if self.fps:
