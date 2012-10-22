@@ -113,20 +113,12 @@ def video_options():
 
 # Testing code
 if __name__ == "__main__":
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "v", ["verbose"])
-    except getopt.GetoptError, err:
-        usage()
-
-    verbose=False
-    for o,a in opts:
-        if o in ("-v", "--verbose"):
-            verbose=True
+    (parser, opts, args) = video_options() 
 
     if len(args)>=1:
         for a in args:
             fp = os.path.realpath(a)
-            v = video_source(fp, verbose)
+            v = video_source(fp, opts.verbose)
             v.analyse_video()
             print v
     else:
