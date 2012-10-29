@@ -111,7 +111,7 @@ def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
     """
     return a mencoder command string
     """
-    cmd = mencoder_bin+" '"+src_file+"'"
+    cmd = mencoder_bin+" -v '"+src_file+"'"
     # position
     if test:
         cmd = cmd + " -ss 20:00 -endpos 120 "
@@ -186,8 +186,7 @@ def package_mp4(src_file, temp_dir, dest_dir, fps=None):
 
     # Get video
     mp4_video_cmd = mp4box_bin+" -aviraw video '"+src_file+"'";
-    if verbose:
-        print "Running: "+mp4_video_cmd
+    if verbose: print "Running: "+mp4_video_cmd
     p = subprocess.Popen(mp4_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
     os.rename(base+"_video.h264", video_file)
@@ -195,8 +194,7 @@ def package_mp4(src_file, temp_dir, dest_dir, fps=None):
 
     # Get Audio
     mp4_audio_cmd = mp4box_bin+" -aviraw audio '"+src_file+"'";
-    if verbose:
-        print "Running: "+mp4_audio_cmd
+    if verbose: print "Running: "+mp4_audio_cmd
     p = subprocess.Popen(mp4_audio_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
     if p.returncode != 0:
@@ -210,8 +208,8 @@ def package_mp4(src_file, temp_dir, dest_dir, fps=None):
     if fps:
         mp4_join_cmd = mp4_join_cmd+"-fps "+str(fps)+" "
     mp4_join_cmd = mp4_join_cmd+" -add '"+audio_file+"' -add '"+video_file+"' '"+final_file+"'"
-    if verbose:
-        print "Running: "+mp4_join_cmd
+
+    if verbose: print "Running: "+mp4_join_cmd
     p = subprocess.Popen(mp4_join_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
     if p.returncode != 0:
