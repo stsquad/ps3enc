@@ -22,6 +22,7 @@ import shlex
 import shutil
 import tempfile
 from datetime import date
+from argparse import ArgumentParser
 
 # Handy for running in place
 from os.path import realpath,dirname
@@ -35,40 +36,42 @@ else:
 
 from video_source_factory import get_video_source
 
-verbose=False
-verbose_level=0
-
-audio_bitrate=128
-video_bitrate=2000
-no_crop=False
-test=False
-progress=False
-debug=False
-
-audio_id=None
-language=None
-subtitle=None
-
-package_only=False
-cartoon=False
-
 mplayer_bin="/usr/bin/mplayer"
 mencoder_bin="/usr/bin/mencoder"
 mp4box_bin="/usr/bin/MP4Box"
 
 me=os.path.basename(sys.argv[0])
-passes=3
-skip_encode=False
+#
+# Command line options
+#
+parser=ArgumentParser(description='Encode video files for the PS3 native player.',
+                      epilog="""The script is designed to be easily scriptable for
+batch processing of encode requests. The final output is an MP4 that should play
+by default on the PS3 games systems built-in video player""")
 
-# Some exceptions
-class MencoderError(Exception):
-    def __init__(self, reason):
-        self.reason = reason
-    def __str__(self):
-        return repr(self.reason)
+parser.add_argument('files', metavar='FILE_TO_ENCODE', nargs='+', help='File to encode')
+parser.add_argument('-v','--verbose', action='count', default=None, help='Be verbose in output')
+parser.add_argument('-q','--quiet', action='store_false', dest='verbose', help="Supress output")
+parser.add_argument('--debug', action='store_true', default=False, help="Debug mode, don't delete temp files")
+parser.add_argument('-n', '--no-crop', action="store_true", default=False, help="Don't try and crop the source")
+parser.add_argument('-s', '--skip-encode', dest="skip_encode", action="store_true", help="Skip encode and package if files are there")
+
+encode_options = parser.add_argument_group('Encoding control')
+encode_options.add_argument('-b', '--bitrate', metavar="n", type=int, dest="video_bitrate", default=2000, help="video encoding bitrate")
+encode_options.add_argument('--audio_bitrate', metavar="n", type=int, dest="audio_bitrate", default=128, help="audio encoding bitrate")
+encode_options.add_argument('-p', '--passes', metavar="n", type=int, default=3, help="Number of encoding passes (default 3)")
+encode_options.add_argument('-c', '--cartoon', action="store_true", help="Assume we are encoding a cartoon (lower bitrate + filters)")
+encode_options.add_argument('-f', '--film', action="store_true", help="Assume we are encoding a film (higher bitrate)")
+encode_options.add_argument('-t', '--test', action="store_true", help="Do a test segment")
+encode_options.add_argument('-a', '--alang', type=int, default=None, help="Select differnt audio channel")
+encode_options.add_argument('--slang', type=int, default=None, help="Bake in language subtitles")
+
+package_options = parser.add_argument_group('Packaging')
+package_options.add_argument('--pkg', action="store_true", help="Don't encode, just package files into MP4")
 
 def calc_temp_pathspec(src_file, stage, temp_dir):
     """
+    Simple helper function for calculating temporary filenames
     >>> calc_temp_pathspec('/home/alex/tmp/video/something.vob', 'turbo.avi', '/tmp/tmpdir_xxx')
     '/tmp/tmpdir_xxx/something.turbo.avi'
     """
@@ -77,104 +80,122 @@ def calc_temp_pathspec(src_file, stage, temp_dir):
     final_path = temp_dir+"/"+base+"."+stage
     return final_path
 
+# Some exceptions
+class MencoderError(Exception):
+    def __init__(self, reason):
+        self.reason = reason
+    def __str__(self):
+        return repr(self.reason)
 
-def run_mencoder_command(command, dst_file):
-    if skip_encode and os.path.exists(dst_file):
-        print "Skipping generation of: "+dst_file
-    else:
-        print "Running: %s (progress is %s)" % (command, str(progress))
-        args = shlex.split(command)
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
-        while p.returncode == None:
-            status = p.stdout.readlines(4096)
+class mencoder(object):
+    """
+    Helper object to wrap around mencoder calls. Instantiate one per
+    file to be encoded
+    """
 
-            if status and progress==True:
-                line = status[-1]
-                if line.startswith("Pos:"):
-                    line.rstrip()
-                    sys.stdout.write("\r"+line)
-                    sys.stdout.flush()
-            else:
-                break
+    def __init__(self, args, src_file, crop=""):
+        self.args = args
+        self.src_file = src_file
+        self.crop = crop
+
+    def run(self, command, dst_file):
+        if self.args.skip_encode and os.path.exists(dst_file):
+            print "Skipping generation of: "+dst_file
+        else:
+            args = shlex.split(command)
+            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+            while p.returncode == None:
+                status = p.stdout.readlines(4096)
+
+                if status and self.args.verbose:
+                    line = status[-1]
+                    if line.startswith("Pos:"):
+                        line.rstrip()
+                        sys.stdout.write("\r"+line)
+                        sys.stdout.flush()
+                    else:
+                        break
             
-        # Grab final bits
-        (out, err) = p.communicate()
-        if p.returncode != 0:
-            raise MencoderError("mencoder failed ((%d/%s)" % (p.returncode, out))
+            # Grab final bits
+            (out, err) = p.communicate()
+            if p.returncode != 0:
+                raise MencoderError("mencoder failed ((%d/%s)" % (p.returncode, out))
 
-    if os.path.exists(dst_file):
-        return dst_file
-    else:
-        raise MencoderError("Missing output file: %s" % dst_file)
+        if os.path.exists(dst_file):
+            return dst_file
+        else:
+            raise MencoderError("Missing output file: %s" % dst_file)
 
-def create_mencoder_cmd(src_file, dst_file, crop, encode_audio=False, epass=1):
-    """
-    return a mencoder command string
-    """
-    cmd = mencoder_bin+" -v '"+src_file+"'"
-    # position
-    if test:
-        cmd = cmd + " -ss 20:00 -endpos 120 "
-    if subtitle:
-        cmd = cmd + " -sid "+subtitle
-    else:
-        cmd = cmd + " -nosub "
-    if language:
-        cmd = cmd + " -aid "+language
-    # audio encoding
-    # cmd = cmd + " -oac " + oac_args
-    if encode_audio:
-        cmd = cmd + " -oac faac -faacopts mpeg=4:object=2:br="+str(audio_bitrate)
-    else:
-        cmd = cmd + " -oac copy "
-    # crop params
-    cmd = cmd + " " + crop
-    # harddump for remuxed streams
-    cmd = cmd + " -vf softskip,harddup"
+    def build_cmd(self, dst_file, encode_audio=False, epass=1):
+        """
+        return a mencoder command string
+        """
+        cmd = "%s -v %s" % (mencoder_bin, self.src_file)
 
-    # For cartoons post-processing median deinterlacer seems to help
-    if cartoon:
-        cmd = cmd + ",pp=md"
+        # position
+        if self.args.test:
+            cmd = cmd + " -ss 20:00 -endpos 120 "
+        if self.args.slang:
+            cmd = "%s -sid %d" % (cmd, self.args.slang)
+        else:
+            cmd = "%s -nosub " % (cmd)
+        if self.args.alang:
+            cmd = "%s -aid %d" % (cmd, self.args.alang)
 
-    if audio_id:
-        cmd = cmd + " -aid "+audio_id
-        
-    # x264 video encoding...
-# x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1"
-    cmd = cmd + " -ovc x264 -x264encopts bitrate="+str(video_bitrate)
-    cmd = cmd + ":me=hex:nodct_decimate:nointerlaced:no8x8dct:nofast_pskip:trellis=1:partitions=p8x8,b8x8,i4x4"
-    cmd = cmd + ":mixed_refs:keyint=300:keyint_min=30:psy_rd=0.8,0.2:frameref=3"
-    cmd = cmd + ":bframes=3:b_adapt=2:b_pyramid=none:weight_b:weightp=1:direct_pred=spatial:subq=6"
-    cmd = cmd + ":nombtree:chroma_me:cabac:aud:aq_mode=2:deblock:vbv_maxrate=20000:vbv_bufsize=20000:level_idc=41:threads=auto:ssim:psnr"
-    cmd = cmd + ":pass="+str(epass)
-    cmd = cmd + " -o '" + dst_file + "'"
+        # audio encoding
+        # cmd = cmd + " -oac " + oac_args
+        if encode_audio:
+            cmd = "%s -oac faac -faacopts mpeg=4:object=2:br=%d" % (cmd, self.args.audio_bitrate)
+        else:
+            cmd = cmd + " -oac copy "
 
-    return cmd
+        # crop params
+        cmd = "%s %s" % (cmd, self.crop)
+
+        # harddump for remuxed streams
+        cmd = cmd + " -vf softskip,harddup"
+
+        # For cartoons post-processing median deinterlacer seems to help
+        if self.args.cartoon:
+            cmd = cmd + ",pp=md"
 
 
-def do_turbo_pass(src_file, dst_file, crop):
-    """
-    Do a fast turbo pass encode of the file
-    """
-#    	my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
-    turbo_cmd = create_mencoder_cmd(src_file, dst_file, crop, False, 1)
-    return run_mencoder_command(turbo_cmd, dst_file)
+        # x264 video encoding...
+        # x264_encode_opts="-x264encopts subq=6:bframes=3:partitions=p8x8,b8x8,i4x4:weight_b:threads=1:nopsnr:nossim:frameref=3:mixed_refs:level_idc=41:direct_pred=auto:trellis=1"
+        cmd = cmd + " -ovc x264 -x264encopts bitrate="+str(self.args.video_bitrate)
+        cmd = cmd + ":me=hex:nodct_decimate:nointerlaced:no8x8dct:nofast_pskip:trellis=1:partitions=p8x8,b8x8,i4x4"
+        cmd = cmd + ":mixed_refs:keyint=300:keyint_min=30:psy_rd=0.8,0.2:frameref=3"
+        cmd = cmd + ":bframes=3:b_adapt=2:b_pyramid=none:weight_b:weightp=1:direct_pred=spatial:subq=6"
+        cmd = cmd + ":nombtree:chroma_me:cabac:aud:aq_mode=2:deblock:vbv_maxrate=20000:vbv_bufsize=20000:level_idc=41:threads=auto:ssim:psnr"
+        cmd = cmd + ":pass="+str(epass)
+        cmd = cmd + " -o '" + dst_file + "'"
 
-def do_encoding_pass(src_file, dst_file, crop, epass=1):
-    """
-    Normal multi-stage encoding pass
-    """
-    encode_cmd = create_mencoder_cmd(src_file, dst_file, crop, True, epass)
-    return run_mencoder_command(encode_cmd, dst_file)
+        return cmd
 
-def package_mp4(src_file, temp_dir, dest_dir, fps=None):
+    def turbo_pass(self, dst_file):
+        """
+        Do a fast turbo pass encode of the file
+        """
+        # my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
+        turbo_cmd = self.build_cmd(dst_file, False, 1)
+        return self.run(turbo_cmd, dst_file)
+
+    def encoding_pass(self, dst_file, epass=1):
+        """
+        Normal multi-stage encoding pass
+        """
+        encode_cmd = self.build_cmd(dst_file, True, epass)
+        return self.run(encode_cmd, dst_file)
+
+def package_mp4(arg, src_file, temp_dir, dest_dir, fps=None):
     """
     Package a given AVI file into clean MP4
     """
+    global args
     (dir, file) = os.path.split(src_file)
     (base, extension) = os.path.splitext(file)
 
-    if verbose: print "package_mp4: (%s:%s) -> (%s:%s)\n" % (dir, file, base, extension)
+    if args.verbose: print "package_mp4: (%s:%s) -> (%s:%s)\n" % (dir, file, base, extension)
 
     # Do this all in the work directory
     os.chdir(temp_dir)
@@ -186,7 +207,7 @@ def package_mp4(src_file, temp_dir, dest_dir, fps=None):
 
     # Get video
     mp4_video_cmd = mp4box_bin+" -aviraw video '"+src_file+"'";
-    if verbose: print "Running: "+mp4_video_cmd
+    if args.verbose: print "Running: "+mp4_video_cmd
     p = subprocess.Popen(mp4_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
     os.rename(base+"_video.h264", video_file)
@@ -194,7 +215,7 @@ def package_mp4(src_file, temp_dir, dest_dir, fps=None):
 
     # Get Audio
     mp4_audio_cmd = mp4box_bin+" -aviraw audio '"+src_file+"'";
-    if verbose: print "Running: "+mp4_audio_cmd
+    if args.verbose: print "Running: "+mp4_audio_cmd
     p = subprocess.Popen(mp4_audio_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
     if p.returncode != 0:
@@ -209,14 +230,14 @@ def package_mp4(src_file, temp_dir, dest_dir, fps=None):
         mp4_join_cmd = mp4_join_cmd+"-fps "+str(fps)+" "
     mp4_join_cmd = mp4_join_cmd+" -add '"+audio_file+"' -add '"+video_file+"' '"+final_file+"'"
 
-    if verbose: print "Running: "+mp4_join_cmd
+    if args.verbose: print "Running: "+mp4_join_cmd
     p = subprocess.Popen(mp4_join_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
     if p.returncode != 0:
         print "Failed (%d/%s)" % (p.returncode, out)
         exit(-1)
 
-    if not debug:
+    if not args.debug:
         os.unlink(video_file)
         os.unlink(audio_file)
 
@@ -224,10 +245,10 @@ def package_mp4(src_file, temp_dir, dest_dir, fps=None):
 
 
 # Process a single VOB file into final MP4
-def process_input(vob_file):
-    if verbose: print "process_input: "+vob_file
+def process_input(args, vob_file):
+    if args.verbose: print "process_input: "+vob_file
 
-    video = get_video_source(vob_file, (verbose_level>1))
+    video = get_video_source(vob_file, (args.verbose>1))
     video.analyse_video()
 
     # Save were we are
@@ -246,33 +267,34 @@ def process_input(vob_file):
     
     temp_files = [temp_dir+"/divx2pass.log"]
 
-    if no_crop:
+    if args.no_crop:
         crop = ""
     else:
         crop = video.crop_spec
+    if args.verbose: print "Calculated crop of %s for %s" % (crop, vob_file)
 
-    if verbose: print "Calculated crop of %s for %s" % (crop, vob_file)
+    encoder = mencoder(args, vob_file, crop)
 
     try:
-        if passes>1:
+        if args.passes>1:
             tf = calc_temp_pathspec(vob_file, "turbo.avi", temp_dir)
-            temp_files.append(do_turbo_pass(vob_file, tf, crop))
-            for i in range(2, passes+1):
+            temp_files.append(encoder.turbo_pass(tf))
+            for i in range(2, args.passes+1):
                 tf = calc_temp_pathspec(vob_file, "pass"+str(i)+".avi", temp_dir)
-                temp_files.append(do_encoding_pass(vob_file, tf, crop, 3))
+                temp_files.append(encoder.encoding_pass(tf, 3))
         else:
             tf = calc_temp_pathspec(vob_file, "singlepass.avi", temp_dir)
-            temp_files.append(do_encoding_pass(vob_file, tf, crop))
+            temp_files.append(encoder.encoding_pass(tf))
 
 
         ff = temp_files[-1]
-        if verbose: print "Final encode of %s is %s" % (vob_file, ff)
+        if args.verbose: print "Final encode of %s is %s" % (vob_file, ff)
 
         if os.path.exists(ff):
             print "Final file is:"+ff
-            package_mp4(ff, temp_dir, dir, video.fps)
+            package_mp4(args, ff, temp_dir, dir, video.fps)
             os.chdir(start_dir)
-            if not debug:
+            if not args.debug:
                 for tf in temp_files:
                     os.unlink(tf)
                 shutil.rmtree(temp_dir)
@@ -280,94 +302,25 @@ def process_input(vob_file):
         print "error: %s" % str(e);
 
 
-def usage():
-    print """
-Usage:
-
-"""  + me + """ [options] filename
-
--h, --help         Display usage test
--v, --verbose      Be verbose in output
---progress         Show progress of encode
--d, --debug        Keep interim files for debugging
--n, --no-crop      Don't try and crop
--s, --skip-encode  Skip steps if file present
-
-Encoding control:
-    -p, --passes       Number of encoding passes (default """+str(passes)+""")
-    -c, --cartoon      Assume we are encoding a cartoon (lower bitrate + filters)
-    -f, --film         Assume we are encoding a film (higher bitrate)
-
-
-    -t, --test         Do a test segment
-    -a, --alang=<id>   Audio channel
-        --slang=<id>   Bake in subtitles
-
-    --pkg          Just package
-    
-This script is a fairly dump wrapper to mencoder to encode files
-that are compatible with the PS3 system media playback software
-"""
-
 # Start of code
 if __name__ == "__main__":
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hvdnstp:a:cf", ["help", "verbose", "debug", "no-crop", "skip-encode", "passes=", "test", "slang=", "alang=", "progress", "pkg", "cartoon", "film", "bitrate=", "unit-tests", "aid="])
-    except getopt.GetoptError, err:
-        usage()
+    args = parser.parse_args()
 
-    create_log=None
+    # create_log=None
 
-    for o,a in opts:
-        if o in ("-h", "--help"):
-            usage()
-            exit
-        if o in ("-v", "--verbose"):
-            verbose=True
-            verbose_level += 1
-        if o in ("-d", "--debug"):
-            debug=True
-        if o in ("-n", "--no-crop"):
-            no_crop=True
-        if o in ("-s", "--skip-encode"):
-            skip_encode=True
-        if o in ("-p", "--passes"):
-            passes=int(a)
-        if o in ("-c", "--cartoon"):
-            print "Setting cartoon presets"
-            passes=1
-            video_bitrate=1500
-            cartoon=True
-        if o in ("-f", "--film"):
-            video_bitrate=3000
-            audio_bitrate=192
-        if o in ("-t", "--test"):
-            test=True
+    if args.cartoon:
+        args.passes=1
+        args.video_bitrate=1500
+    if args.film:
+        args.video_bitrate=3000
+        args.audio_bitrate=192
 
-        # Long options
-        if o.startswith("--bitrate"):
-            bitrate=a
-        if o.startswith("--slang"):
-            subtitle=a
-        if o.startswith("--alang"):
-            language=a
-        if o.startswith("--aid"):
-            print "setting audio ID to "+a
-            audio_id=a
-        if o.startswith("--progress"):
-            print "setting progress from (%s)" % (o)
-            progress=True
-        if o.startswith("--pkg"):
-            package_only=True
-        if o.startswith("--unit-tests"):
-            import doctest
-            doctest.testmod()
-            exit()
+    if args.verbose:
+        print "args: %s" % (args)
             
-
     # Calculate the full paths ahead of time (lest cwd changes)
     files = []
-    for a in args:
+    for a in args.files:
         if a.startswith("dvd://"):
             files.append(a)
         else:
@@ -375,8 +328,8 @@ if __name__ == "__main__":
             files.append(fp)
  
     for f in files:
-        if package_only:
-            package_mp4(f)
+        if args.pkg:
+            package_mp4(args, f)
         else:
-            process_input(f)
+            process_input(args, f)
         
