@@ -69,6 +69,9 @@ encode_options.add_argument('--slang', type=int, default=None, help="Bake in lan
 package_options = parser.add_argument_group('Packaging')
 package_options.add_argument('--pkg', action="store_true", help="Don't encode, just package files into MP4")
 
+dev_options = parser.add_argument_group('Developer options')
+package_options.add_argument('--valgrind', action="store_true", help="Run the encode under valgrind (to debug mplayer)")
+
 def calc_temp_pathspec(src_file, stage, temp_dir):
     """
     Simple helper function for calculating temporary filenames
@@ -132,6 +135,13 @@ class mencoder(object):
         """
         cmd = "%s -v %s" % (mencoder_bin, self.src_file)
 
+        # Do we want to valgrind it?
+        if self.args.valgrind:
+            (dir, file) = os.path.split(self.src_file)
+            (base, extension) = os.path.splitext(file)
+            log_file="%s/%s-valgrind-pass%d.log" % (dir, base, epass)
+            cmd = "valgrind --trace-children=yes --log-file=%s %s" % (log_file, cmd)
+
         # position
         if self.args.test:
             cmd = cmd + " -ss 20:00 -endpos 120 "
@@ -169,6 +179,9 @@ class mencoder(object):
         cmd = cmd + ":nombtree:chroma_me:cabac:aud:aq_mode=2:deblock:vbv_maxrate=20000:vbv_bufsize=20000:level_idc=41:threads=auto:ssim:psnr"
         cmd = cmd + ":pass="+str(epass)
         cmd = cmd + " -o '" + dst_file + "'"
+
+        if args.verbose:
+            print "cmd: %s" % (cmd)
 
         return cmd
 
