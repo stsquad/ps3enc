@@ -14,25 +14,27 @@
 
 import os
 import sys
-import getopt
 import subprocess
-import re
-import sys
 import shlex
 import shutil
 import tempfile
+import logging
+
 from datetime import date
 from argparse import ArgumentParser
+
+# Logging
+logger = logging.getLogger("ps3enc")
 
 # Handy for running in place
 from os.path import realpath,dirname
 script=realpath(sys.argv[0])
 devlibs=dirname(script)+"/lib"
 if os.path.exists(devlibs):
-    print "Adding "+devlibs+" to path"
+    logger.info("Adding "+devlibs+" to path")
     sys.path.insert(0, devlibs)
 else:
-    print "sys.argv[0] is %s" % (realpath(dirname(sys.argv[0])))
+    logger.info("sys.argv[0] is %s" % (realpath(dirname(sys.argv[0]))))
 
 from video_source_factory import get_video_source
 
@@ -50,11 +52,14 @@ batch processing of encode requests. The final output is an MP4 that should play
 by default on the PS3 games systems built-in video player""")
 
 parser.add_argument('files', metavar='FILE_TO_ENCODE', nargs='+', help='File to encode')
-parser.add_argument('-v','--verbose', action='count', default=None, help='Be verbose in output')
-parser.add_argument('-q','--quiet', action='store_false', dest='verbose', help="Supress output")
-parser.add_argument('--debug', action='store_true', default=False, help="Debug mode, don't delete temp files")
 parser.add_argument('-n', '--no-crop', action="store_true", default=False, help="Don't try and crop the source")
 parser.add_argument('-s', '--skip-encode', dest="skip_encode", action="store_true", help="Skip encode and package if files are there")
+
+output_options = parser.add_argument_group("Logging and output")
+output_options.add_argument('-v', '--verbose', action='count', default=None, help='Be verbose in output')
+output_options.add_argument('-q', '--quiet', action='store_false', dest='verbose', help="Supress output")
+output_options.add_argument('-l', '--log', default=None, help="output to a log file")
+output_options.add_argument('--debug', action='store_true', default=False, help="Debug mode, don't delete temp files")
 
 encode_options = parser.add_argument_group('Encoding control')
 encode_options.add_argument('-b', '--bitrate', metavar="n", type=int, dest="video_bitrate", default=2000, help="video encoding bitrate")
@@ -64,13 +69,32 @@ encode_options.add_argument('-c', '--cartoon', action="store_true", help="Assume
 encode_options.add_argument('-f', '--film', action="store_true", help="Assume we are encoding a film (higher bitrate)")
 encode_options.add_argument('-t', '--test', action="store_true", help="Do a test segment")
 encode_options.add_argument('-a', '--alang', type=int, default=None, help="Select differnt audio channel")
-encode_options.add_argument('--slang', type=int, default=None, help="Bake in language subtitles")
+encode_options.add_argument('--slang', dest="slang", type=int, default=None, help="Bake in language subtitles")
 
 package_options = parser.add_argument_group('Packaging')
 package_options.add_argument('--pkg', action="store_true", help="Don't encode, just package files into MP4")
 
 dev_options = parser.add_argument_group('Developer options')
-package_options.add_argument('--valgrind', action="store_true", help="Run the encode under valgrind (to debug mplayer)")
+dev_options.add_argument('--valgrind', action="store_true", help="Run the encode under valgrind (to debug mplayer)")
+
+def setup_logging(args):
+    # setup logging
+    if args.verbose:
+        if args.verbose == 1: logger.setLevel(logging.INFO)
+        if args.verbose >= 2: logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.WARNING)
+        
+    if args.log:
+        handler = logging.FileHandler(args.log)
+    else:
+        handler = logging.StreamHandler()
+
+    lfmt = logging.Formatter('%(asctime)s:%(levelname)s - %(name)s - %(message)s')
+    handler.setFormatter(lfmt)
+    logger.addHandler(handler)
+
+    logger.info("running with level %s" % (logger.getEffectiveLevel()))
 
 def calc_temp_pathspec(src_file, stage, temp_dir):
     """
@@ -103,7 +127,7 @@ class mencoder(object):
 
     def run(self, command, dst_file):
         if self.args.skip_encode and os.path.exists(dst_file):
-            print "Skipping generation of: "+dst_file
+            logger.info("Skipping generation of: "+dst_file)
         else:
             args = shlex.split(command)
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
@@ -121,6 +145,7 @@ class mencoder(object):
             
             # Grab final bits
             (out, err) = p.communicate()
+            logger.debug("mencoder complete with %d (%s)" % (p.returncode, err))
             if p.returncode != 0:
                 raise MencoderError("mencoder failed ((%d/%s)" % (p.returncode, out))
 
@@ -160,7 +185,8 @@ class mencoder(object):
             cmd = cmd + " -oac copy "
 
         # crop params
-        cmd = "%s %s" % (cmd, self.crop)
+        if self.crop:
+            cmd = "%s %s" % (cmd, self.crop)
 
         # harddump for remuxed streams
         cmd = cmd + " -vf softskip,harddup"
@@ -180,8 +206,7 @@ class mencoder(object):
         cmd = cmd + ":pass="+str(epass)
         cmd = cmd + " -o '" + dst_file + "'"
 
-        if args.verbose:
-            print "cmd: %s" % (cmd)
+        logger.debug("cmd: %s" % (cmd))
 
         return cmd
 
@@ -208,7 +233,7 @@ def package_mp4(arg, src_file, temp_dir, dest_dir, fps=None):
     (dir, file) = os.path.split(src_file)
     (base, extension) = os.path.splitext(file)
 
-    if args.verbose: print "package_mp4: (%s:%s) -> (%s:%s)\n" % (dir, file, base, extension)
+    logger.info("package_mp4: (%s:%s) -> (%s:%s)\n" % (dir, file, base, extension))
 
     # Do this all in the work directory
     os.chdir(temp_dir)
@@ -220,22 +245,25 @@ def package_mp4(arg, src_file, temp_dir, dest_dir, fps=None):
 
     # Get video
     mp4_video_cmd = mp4box_bin+" -aviraw video '"+src_file+"'";
-    if args.verbose: print "Running: "+mp4_video_cmd
+    logger.info("Running: "+mp4_video_cmd)
     p = subprocess.Popen(mp4_video_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
-    os.rename(base+"_video.h264", video_file)
+    if p.returncode != 0:
+        logger.error("Failed MP4 video extraction (%d/%s)" % (p.returncode, out))
+        exit(-1)
 
+    os.rename(base+"_video.h264", video_file)
 
     # Get Audio
     mp4_audio_cmd = mp4box_bin+" -aviraw audio '"+src_file+"'";
-    if args.verbose: print "Running: "+mp4_audio_cmd
+    logger.info("Running: "+mp4_audio_cmd)
     p = subprocess.Popen(mp4_audio_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
     if p.returncode != 0:
-        print "Failed (%d/%s)" % (p.returncode, out)
+        logger.error("Failed MP4 audio extraction (%d/%s)" % (p.returncode, out))
         exit(-1)
-    os.rename(base+"_audio.raw", audio_file);
 
+    os.rename(base+"_audio.raw", audio_file);
 
     # Join the two together
     mp4_join_cmd = mp4box_bin+" "
@@ -243,11 +271,11 @@ def package_mp4(arg, src_file, temp_dir, dest_dir, fps=None):
         mp4_join_cmd = mp4_join_cmd+"-fps "+str(fps)+" "
     mp4_join_cmd = mp4_join_cmd+" -add '"+audio_file+"' -add '"+video_file+"' '"+final_file+"'"
 
-    if args.verbose: print "Running: "+mp4_join_cmd
+    logger.info("Running: "+mp4_join_cmd)
     p = subprocess.Popen(mp4_join_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (out, err) = p.communicate()
     if p.returncode != 0:
-        print "Failed (%d/%s)" % (p.returncode, out)
+        logger.error("Failed MP4 join step (%d/%s)" % (p.returncode, out))
         exit(-1)
 
     if not args.debug:
@@ -259,7 +287,7 @@ def package_mp4(arg, src_file, temp_dir, dest_dir, fps=None):
 
 # Process a single VOB file into final MP4
 def process_input(args, vob_file):
-    if args.verbose: print "process_input: "+vob_file
+    logger.info("process_input: "+vob_file)
 
     video = get_video_source(vob_file, (args.verbose>1))
     video.analyse_video()
@@ -284,7 +312,7 @@ def process_input(args, vob_file):
         crop = ""
     else:
         crop = video.crop_spec
-    if args.verbose: print "Calculated crop of %s for %s" % (crop, vob_file)
+    logger.info("Calculated crop of %s for %s" % (crop, vob_file))
 
     encoder = mencoder(args, vob_file, crop)
 
@@ -301,10 +329,10 @@ def process_input(args, vob_file):
 
 
         ff = temp_files[-1]
-        if args.verbose: print "Final encode of %s is %s" % (vob_file, ff)
+        logger.info("Final encode of %s is %s" % (vob_file, ff))
 
         if os.path.exists(ff):
-            print "Final file is:"+ff
+            logger.info("Final file is: %s", (ff))
             package_mp4(args, ff, temp_dir, dir, video.fps)
             os.chdir(start_dir)
             if not args.debug:
@@ -312,14 +340,13 @@ def process_input(args, vob_file):
                     os.unlink(tf)
                 shutil.rmtree(temp_dir)
     except MencoderError as e:
-        print "error: %s" % str(e);
+        logger.warning("error: %s" % str(e))
 
 
 # Start of code
 if __name__ == "__main__":
     args = parser.parse_args()
-
-    # create_log=None
+    setup_logging(args)
 
     if args.cartoon:
         args.passes=1
@@ -328,8 +355,7 @@ if __name__ == "__main__":
         args.video_bitrate=3000
         args.audio_bitrate=192
 
-    if args.verbose:
-        print "args: %s" % (args)
+    logger.debug("args: %s" % (args))
             
     # Calculate the full paths ahead of time (lest cwd changes)
     files = []
