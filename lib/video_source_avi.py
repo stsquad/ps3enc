@@ -11,14 +11,7 @@
 #
 
 import os
-import sys
-import getopt
-import subprocess
 import re
-import sys
-import shlex
-import shutil
-import tempfile
 
 mplayer_bin="/usr/bin/mplayer"
 
@@ -116,30 +109,35 @@ class video_source_avi(video_source_mplayer):
 
     def identify_video(self):
         ident_cmd = mplayer_bin+" -identify -frames 0 '"+self.path+"'"
-        if self.verbose: print "doing identify step: %s" % (ident_cmd)
-        try:
-            p = subprocess.Popen(ident_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-            (out, err) = p.communicate()
+        (out, err) = self.run_cmd(ident_cmd)
+
+        if out:
             self.extract_fps(out)
             self.extract_audio(out)
             self.extract_video_codec(out)
             self.extract_audio_codec(out)
-        except OSError:
-                print "Failed to spawn: "+ident_cmd
 
     def extract_crop(self, out):
         """
         >>> x = video_source_avi('/path/to/file')
         >>> x.extract_crop(crop_test_output)
         >>> print x.crop_spec
+        -vf crop=720:560:0:8
         """
-        m = re.search("\-vf crop=[-0123456789:]*", out)
-        if m:
+        for m in re.finditer("\-vf crop=[-0123456789:]*", out):
             try:
                 self.potential_crops[m.group(0)]+=1
             except KeyError:
                 self.potential_crops[m.group(0)]=1
-                if self.verbose: print "Found Crop:"+m.group(0)
+                self.logger.debug("Found Crop:"+m.group(0))
+
+        # reduce to the most common crop?
+        crop_count = 0
+        for crop  in self.potential_crops:
+            if self.potential_crops[crop] > crop_count:
+                crop_count = self.potential_crops[crop]
+                self.crop_spec = crop
+
         
     def extract_fps(self, out):
         """
@@ -198,23 +196,10 @@ class video_source_avi(video_source_mplayer):
         """
         for i in range(0, self.size-self.size/60, self.size/60):
             crop_cmd = mplayer_bin+" -v -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+self.path+"'"
-            if self.verbose: print "doing sample step: %s" % (crop_cmd)
-            try:
-                p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-                (out, err) = p.communicate()
+            (out, err) = self.run_cmd(crop_cmd)
+            if out:
                 self.extract_crop(out)
-
-            except OSError:
-                print "Failed to spawn: "+crop_cmd
-
-        # most common crop?
-        crop_count = 0
-        for crop  in self.potential_crops:
-            if self.potential_crops[crop] > crop_count:
-                crop_count = self.potential_crops[crop]
-                self.crop_spec = crop
-
-        if self.verbose: print "sample_video: crop is "+self.crop_spec
+        self.logger.info("sample_video: crop is "+self.crop_spec)
 
 
 

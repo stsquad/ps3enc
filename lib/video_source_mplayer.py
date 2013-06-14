@@ -105,16 +105,8 @@ class video_source_mplayer(video_source):
 
     def identify_video(self):
         ident_cmd = mplayer_bin+" -identify -frames 0 '"+self.path+"'"
-        if self.verbose: print "doing identify step: %s" % (ident_cmd)
-        try:
-            p = subprocess.Popen(ident_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-            (out, err) = p.communicate()
-            self.extract_fps(out)
-            self.extract_audio(out)
-            self.extract_video_codec(out)
-            self.extract_audio_codec(out)
-        except OSError:
-                print "Failed to spawn: "+ident_cmd
+        self.logger.debug("doing identify step: %s" % (ident_cmd))
+        self.run_cmd(ident_cmd)
 
     def extract_crop(self, out):
         """
