@@ -289,7 +289,7 @@ def package_mp4(arg, src_file, temp_dir, dest_dir, fps=None):
 def process_input(args, vob_file):
     logger.info("process_input: "+vob_file)
 
-    video = get_video_source(vob_file, (args.verbose>1))
+    video = get_video_source(vob_file, logger)
     video.analyse_video()
 
     # Save were we are

@@ -10,7 +10,12 @@
 #
 
 import os
-import sys
+import subprocess
+
+# Logging, use this if none passed in
+import logging
+class_logger = logging.getLogger("video_source")
+
 
 class video_source(object):
     """
@@ -32,7 +37,7 @@ class video_source(object):
     audio_codec=None
     tracks=None
 
-    def __init__(self, path, verbose=False):
+    def __init__(self, path, logger=class_logger):
         """
         >>> x = video_source('/path/to/file.avi')
         >>> x.dir
@@ -45,14 +50,28 @@ class video_source(object):
         '.avi'
         """
         self.path = path
-        self.verbose = verbose
-        if (self.verbose): print "video_source(%s)" % (self.path)
+        self.logger = logger
+        self.logger.info("video_source(%s)" % (self.path))
         (self.dir, self.file) = os.path.split(self.path)
         (self.base, self.extension) = os.path.splitext(self.file)
 
     def filepath(self):
         return "%s/%s" % (self.dir, self.file)
 
+    def run_cmd(self, command):
+        self.logger.debug("running command %s" % (command))
+        try:
+            p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+            (out, err) = p.communicate()
+            if p.returncode == 0:
+                return (out,err)
+            else:
+                self.logger.error("command %s failed with %d (%s)\n" % (command, p.returncode, err))
+        except OSError:
+            self.logger.error("failed to spawn: "+command)
+
+        return (out,err)
+        
     def __str__(self):
         result = []
         if self.file:
@@ -114,8 +133,14 @@ def video_options():
 # Testing code
 if __name__ == "__main__":
     (parser, opts, args) = video_options() 
-
+    
     if len(args)>=1:
+        # initialise local logging for tests
+        lfmt = logging.Formatter('%(asctime)s:%(levelname)s - %(name)s - %(message)s')
+        handler = logging.StreamHandler()
+        handler.setFormatter(lfmt)
+        class_logger.addHandler(handler)
+        class_logger.setLevel(logging.DEBUG)
         for a in args:
             fp = os.path.realpath(a)
             v = video_source(fp, opts.verbose)
@@ -126,3 +151,12 @@ if __name__ == "__main__":
         doctest.testmod()
         
         
+
+
+
+
+
+
+
+
+
