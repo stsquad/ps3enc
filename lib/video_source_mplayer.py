@@ -11,14 +11,7 @@
 #
 
 import os
-import sys
-import getopt
-import subprocess
 import re
-import sys
-import shlex
-import shutil
-import tempfile
 
 mplayer_bin="/usr/bin/mplayer"
 
@@ -82,22 +75,31 @@ A:   2.3 V:   2.3 A-V:  0.000 ct:  0.032  53/ 53  4%  5%  0.3% 0 0
 A:   2.4 V:   2.4 A-V:  0.000 ct:  0.032  54/ 54  4%  5%  0.3% 0 0
 """
 
-from video_source import video_source
-
+from video_source import video_source, video_options
+from video_logging import setup_logging
+import logging
+class_logger = logging.getLogger("video_source_mplayer")
 
 class video_source_mplayer(video_source):
     """
-    A video source is a wrapper around an media file mplayer understands
+    A generic video source that is analysed by mplayer
     """
 
-    # mplayer parameters
-    fps=None
+    def __init__(self, filepath, args, logger=class_logger):
+        super(self.__class__,self).__init__(filepath, args, logger)
+        # Crop calculation
+        self.crop_spec=None
+        self.potential_crops = {}
 
-    audio_tracks = []
+    def __str__(self):
+        """
+        Our string representation
+        """
+        results = super(self.__class__,self).__str__().split(", ")
+        if len(self.audio_tracks)>0:
+            results.append("Audio tracks: %d" % (len(self.audio_tracks)))
 
-    # Crop calculation
-    crop_spec=None
-    potential_crops = {}
+        return ", ".join(results)
 
     def analyse_video(self):
         self.identify_video()
@@ -110,21 +112,31 @@ class video_source_mplayer(video_source):
 
     def extract_crop(self, out):
         """
-        >>> x = video_source_mplayer('/path/to/file')
+        >>> args = video_options().parse_args(["-q", "/path/to/file.avi"])
+        >>> x = video_source_mplayer(args.files[0], args)
         >>> x.extract_crop(crop_test_output)
         >>> print x.crop_spec
+        -vf crop=720:560:0:8
         """
-        m = re.search("\-vf crop=[-0123456789:]*", out)
-        if m:
+        for m in re.finditer("\-vf crop=[-0123456789:]*", out):
             try:
                 self.potential_crops[m.group(0)]+=1
             except KeyError:
                 self.potential_crops[m.group(0)]=1
-                if self.verbose: print "Found Crop:"+m.group(0)
+                self.logger.debug("Found Crop:"+m.group(0))
+
+        # reduce to the most common crop?
+        crop_count = 0
+        for crop  in self.potential_crops:
+            if self.potential_crops[crop] > crop_count:
+                crop_count = self.potential_crops[crop]
+                self.crop_spec = crop
+
         
     def extract_fps(self, out):
         """
-        >>> x = video_source_mplayer('/path/to/file')
+        >>> args = video_options().parse_args(["-q", "/path/to/file.avi"])
+        >>> x = video_source_mplayer(args.files[0], args)
         >>> x.extract_fps(ident_test_output)
         >>> print x.fps
         25.000
@@ -137,7 +149,8 @@ class video_source_mplayer(video_source):
 
     def extract_video_codec(self, out):
         """
-        >>> x = video_source_mplayer('/path/to/file')
+        >>> args = video_options().parse_args(["-q", "/path/to/file"])
+        >>> x = video_source_mplayer(args.files[0], args)
         >>> x.extract_video_codec(ident_test_output)
         >>> print x.video_codec
         ffmpeg2
@@ -150,7 +163,8 @@ class video_source_mplayer(video_source):
 
     def extract_audio(self, out):
         """
-        >>> x = video_source_mplayer('/path/to/file')
+        >>> args = video_options().parse_args(["-q", "/path/to/file"])
+        >>> x = video_source_mplayer(args.files[0], args)
         >>> x.extract_audio(ident_test_output)
         >>> print x.audio_tracks
         ['128', '129', '130']
@@ -162,7 +176,8 @@ class video_source_mplayer(video_source):
 
     def extract_audio_codec(self, out):
         """
-        >>> x = video_source_mplayer('/path/to/file')
+        >>> args = video_options().parse_args(["-q", "/path/to/file"])
+        >>> x = video_source_mplayer(args.files[0], args)
         >>> x.extract_audio_codec(ident_test_output)
         >>> print x.audio_codec
         ffac3
@@ -179,43 +194,30 @@ class video_source_mplayer(video_source):
         """
         for i in range(0, self.size-self.size/60, self.size/60):
             crop_cmd = mplayer_bin+" -v -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+self.path+"'"
-            if self.verbose: print "doing sample step: %s" % (crop_cmd)
-            try:
-                p = subprocess.Popen(crop_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-                (out, err) = p.communicate()
+            (out, err) = self.run_cmd(crop_cmd)
+            if out:
                 self.extract_crop(out)
-
-            except OSError:
-                print "Failed to spawn: "+crop_cmd
-
-        # most common crop?
-        crop_count = 0
-        for crop  in self.potential_crops:
-            if self.potential_crops[crop] > crop_count:
-                crop_count = self.potential_crops[crop]
-                self.crop_spec = crop
-
-        if self.verbose: print "sample_video: crop is "+self.crop_spec
+        self.logger.info("sample_video: crop is "+self.crop_spec)
 
 
 
 # Testing code
 if __name__ == "__main__":
-    from video_source import video_options
-    (parser, options, args) = video_options()
+    parser = video_options()
+    args = parser.parse_args()
+    setup_logging(class_logger, args)
 
-    if len(args)>=1:
-        for a in args:
-            if a.startswith("dvd://"):
-                v = video_source_mplayer(a, options.verbose)
-            else:
-                fp = os.path.realpath(a)
-                v = video_source_mplayer(fp, options.verbose)
-            if options.identify:
-                v.identify_video()
-            if options.analyse:
-                v.analyse_video()
-            print v
+    for a in args.files:
+        if a.startswith("dvd://"):
+            v = video_source_mplayer(a, args, class_logger)
+        else:
+            fp = os.path.realpath(a)
+            v = video_source_mplayer(fp, args, class_logger)
+        if args.identify:
+            v.identify_video()
+        if args.analyse:
+            v.analyse_video()
+        print v
     else:
         import doctest
         doctest.testmod()
