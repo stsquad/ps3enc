@@ -13,15 +13,9 @@
 # you get to keep both pieces, fix it then please send me the glue :-)
 #
 
-import os
 import sys
-import getopt
 import subprocess
 import re
-import sys
-import shlex
-import shutil
-import tempfile
 import signal
 
 # for timeouts
@@ -69,6 +63,11 @@ V: 567.9 14194/14194  3%  0%  0.0% 0 0
 V: 568.0 14195/14195  3%  0%  0.0% 0 0 
 """
 
+from video_source import video_options
+from video_logging import setup_logging
+import logging
+class_logger = logging.getLogger("video_source_dvd")
+
 from video_source_mplayer import video_source_mplayer
 
 class video_source_dvd(video_source_mplayer):
@@ -79,20 +78,21 @@ class video_source_dvd(video_source_mplayer):
     def _alarm_handler(self, signum, frame):
         raise Alarm
     
-    def __init__(self, path, verbose=False):
+    def __init__(self, filepath, args, logger=class_logger):
         """
-        >>> x = video_source_dvd('dvd://2')
+        >>> args = video_options().parse_args(["-q", "dvd://2"])
+        >>> x = video_source_dvd(args.files[0], args)
         >>> x.track
         2
         """
-        self.path = path
-        self.verbose = verbose
-        if (self.verbose): print "video_source(%s)" % (self.path)
-
+        super(video_source_dvd,self).__init__(filepath, args, logger, real_file=False)
+        if filepath.startswith("dvd://"):
+            self.track = int(filepath.strip("dvd://"))
 
     def extract_crop(self, out):
         """
-        >>> x = video_source_dvd('/path/to/file')
+        >>> args = video_options().parse_args(["-q", "dvd://2"])
+        >>> x = video_source_dvd(args.files[0], args)
         >>> x.extract_crop(crop_test_output)
         >>> print x.crop_spec
         "-vf crop=704:416:8:78"
@@ -132,20 +132,28 @@ class video_source_dvd(video_source_mplayer):
 
         if self.verbose: print "sample_video: crop is "+self.crop_spec
 
-
-
 # Testing code
 if __name__ == "__main__":
-    from video_source import video_options
-    (parser, options, args) = video_options()
+    parser = video_options()
+    args = parser.parse_args()
+    setup_logging(class_logger, args)
 
+    if args.unit_tests:
+        import doctest
+        doctest.testmod()
+    else:
+        print "falling through"
+        
     if len(args)>=1:
         for a in args:
-            if a.startswith("dvd://"):
-                v = video_source_dvd(a, options.verbose)
-            if options.identify:
+            if a.startswith("dvd://") or a.endswith(".vob"):
+                v = video_source_dvd(a, args, class_logger)
+            else:
+                print "video_source_dvd: for DVD files"
+                exit -1
+            if args.identify:
                 v.identify_video()
-            if options.analyse:
+            if args.analyse:
                 v.analyse_video()
             print v
     else:
@@ -153,3 +161,7 @@ if __name__ == "__main__":
         doctest.testmod()
         
         
+
+
+
+

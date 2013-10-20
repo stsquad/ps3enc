@@ -85,8 +85,8 @@ class video_source_mplayer(video_source):
     A generic video source that is analysed by mplayer
     """
 
-    def __init__(self, filepath, args, logger=class_logger):
-        super(self.__class__,self).__init__(filepath, args, logger)
+    def __init__(self, filepath, args, logger=class_logger, real_file=True):
+        super(video_source_mplayer, self).__init__(filepath, args, logger, real_file)
         # Crop calculation
         self.crop_spec=None
         self.potential_crops = {}
@@ -102,6 +102,7 @@ class video_source_mplayer(video_source):
         return ", ".join(results)
 
     def analyse_video(self):
+        super(self.__class__,self).analyse_video()
         self.identify_video()
         self.sample_video()
 

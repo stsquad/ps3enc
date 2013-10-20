@@ -21,7 +21,7 @@ class video_source(object):
     """
     A video source is a wrapper around a video file
     """
-    def __init__(self, path, args, logger=class_logger):
+    def __init__(self, path, args, logger=class_logger, real_file=True):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/file.avi"])
         >>> x = video_source('/path/to/file.avi', args, class_logger)
@@ -38,9 +38,10 @@ class video_source(object):
         self.args = args
         self.logger = logger
         self.logger.info("video_source(%s)" % (self.path))
-        (self.dir, self.file) = os.path.split(self.path)
-        (self.base, self.extension) = os.path.splitext(self.file)
-        self.size = None
+        if self.args.dump:
+            self.dump = open(self.args.dump, "w")
+        else:
+            self.dump = None
 
         # calculated values
         self.crop_spec=None
@@ -48,13 +49,23 @@ class video_source(object):
         self.video_codec=None
         self.audio_codec=None
         self.audio_tracks=None
+        self.size = None
+
+        if real_file:
+            (self.dir, self.file) = os.path.split(self.path)
+            (self.base, self.extension) = os.path.splitext(self.file)
+        else:
+            self.logger.warning("treating filepath as 'fake': %s" % (self.path))
+
 
     def __str__(self):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/fake/file.avi"])
         >>> x = video_source(args.files[0], args, class_logger)
+        >>> print x.file
+        file.avi
         >>> print x
-        'INFO: video_source(/path/to/fake/file.avi)'
+        File: file.avi
         """
         result = []
         if self.file:
@@ -74,16 +85,19 @@ class video_source(object):
 
     def filepath(self):
         """
-        >>> x = video_source('/path/to/file.avi')
+        >>> args = video_options().parse_args(["-q", "/path/to/fake/file.avi"])
+        >>> x = video_source(args.files[0], args, class_logger)
         >>> x.filepath()
-        '/path/to/file.avi'
+        '/path/to/fake/file.avi'
         """
         return "%s/%s" % (self.dir, self.file)
 
     def analyse_video(self):
         """
-        stub
+        The most basic analysis, check file size
         """
+        if os.path.exists(self.path):
+            self.size = os.path.getsize(self.path)
         return
 
         
@@ -92,6 +106,8 @@ class video_source(object):
         try:
             p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
             (out, err) = p.communicate()
+            if self.dump:
+                self.dump.write(out)
             if p.returncode == 0:
                 return (out,err)
             else:
@@ -116,6 +132,7 @@ def video_options():
     output_options.add_argument('-v', '--verbose', action='count', default=None, help='Be verbose in output')
     output_options.add_argument('-q', '--quiet', action='store_false', dest='verbose', help="Supress output")
     output_options.add_argument('-l', '--log', default=None, help="output to a log file")
+    output_options.add_argument('-d', '--dump', default=None, help="dump data from runs to file")
 
     source_actions = parser.add_argument_group('Actions')
     source_actions.add_argument("-i", "--identify",
@@ -129,6 +146,10 @@ def video_options():
                                 action="store_true",
                                 default=False,
                                 help="perform deeper analysis of the file")
+
+    unit_test_actions = parser.add_argument_group('Unit Testing')
+    unit_test_actions.add_argument("--unit-tests", action="store_true", default=False, help="Run modules unit tests")
+
     return parser
     
 

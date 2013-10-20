@@ -3,10 +3,10 @@
 # Encode DVD's (and other sources) into a version of MP4 that a PS3 can use
 #
 # Based on my ps3enc.pl (perl version) which was...
-# Based on Carlos Rivero's GPL bash script
+# originally based on Carlos Rivero's GPL bash script
 # (http://subvida.com/2007/06/18/convert-divx-xvid-to-ps3-format-mpeg4-on-linux/)
 #
-# (C)opyright 2010 Alex Bennee <alex@bennee.com>
+# (C)opyright 2010,2011,2012,2013 Alex Bennee <alex@bennee.com>
 #
 # Licenced under the GPL version 3 Which means no warrenty! Break it
 # you get to keep both pieces, fix it then please send me the glue :-)

@@ -60,7 +60,7 @@ ID_AUDIO_CODEC=ffac3
 """
 
 crop_test_output="""
-A:   2.1 V:   2.1 A-V:  0.000 ct:  0.032  48/ 48  4%  5%  0.3% 0 0 
+A:   2.1 V:   2.1 A-V:  0.000 ct:  0.032  48/ 48  4%  5%  0.3% 0 0
 [CROP] Crop area: X: 0..719  Y: 170..404  (-vf crop=720:224:0:176).
 A:   2.2 V:   2.2 A-V:  0.000 ct:  0.032  49/ 49  4%  5%  0.3% 0 0 
 [CROP] Crop area: X: 0..719  Y: 120..453  (-vf crop=720:320:0:128).
@@ -92,19 +92,8 @@ class video_source_avi(video_source_mplayer):
     crop_spec=None
     potential_crops = {}
 
-    def __str__(self):
-        """
-        Our string representation
-        """
-        results = super(self.__class__,self).__str__().split(", ")
-        if len(self.audio_tracks)>0:
-            results.append("Audio tracks: %d" % (len(self.audio_tracks)))
-
-        return ", ".join(results)
 
     def analyse_video(self):
-        if os.path.exists(self.path):
-            self.size = os.path.getsize(self.path)
         super(self.__class__,self).analyse_video()
 
     def identify_video(self):
@@ -117,90 +106,7 @@ class video_source_avi(video_source_mplayer):
             self.extract_video_codec(out)
             self.extract_audio_codec(out)
 
-    def extract_crop(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_crop(crop_test_output)
-        >>> print x.crop_spec
-        -vf crop=720:560:0:8
-        """
-        for m in re.finditer("\-vf crop=[-0123456789:]*", out):
-            try:
-                self.potential_crops[m.group(0)]+=1
-            except KeyError:
-                self.potential_crops[m.group(0)]=1
-                self.logger.debug("Found Crop:"+m.group(0))
-
-        # reduce to the most common crop?
-        crop_count = 0
-        for crop  in self.potential_crops:
-            if self.potential_crops[crop] > crop_count:
-                crop_count = self.potential_crops[crop]
-                self.crop_spec = crop
-
-        
-    def extract_fps(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_fps(ident_test_output)
-        >>> print x.fps
-        25.000
-        """
-        m = re.search("ID_VIDEO_FPS=(\d{2}\.\d*)", out)
-        if m:
-            self.fps = m.groups()[0]
-        else:
-            print "extract_fps: Failed to find FPS in (%s)" % (out)
-
-    def extract_video_codec(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_video_codec(ident_test_output)
-        >>> print x.video_codec
-        ffmpeg2
-        """
-        m = re.search("ID_VIDEO_CODEC=(\w+)", out)
-        if m:
-            self.video_codec = m.groups()[0]
-        else:
-            print "extract_video_codec: Failed to find VIDEO in (%s)" % (out)
-
-    def extract_audio(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_audio(ident_test_output)
-        >>> print x.audio_tracks
-        ['128', '129', '130']
-        """
-        self.audio_tracks = re.findall("ID_AUDIO_ID=(\d+)", out)
-        if len(self.audio_tracks)==0:
-            print "extract_audio: Failed to find audio tracks in (%s)" % (out)
-            
-
-    def extract_audio_codec(self, out):
-        """
-        >>> x = video_source_avi('/path/to/file')
-        >>> x.extract_audio_codec(ident_test_output)
-        >>> print x.audio_codec
-        ffac3
-        """
-        m = re.search("ID_AUDIO_CODEC=(\w+)", out)
-        if m:
-            self.audio_codec = m.groups()[0]
-        else:
-            print "extract_audio_codec: Failed to find AUDIO in (%s)" % (out)
-
-    def sample_video(self):
-        """
-        Calculate the best cropping parameters to use by looking over the whole file
-        """
-        for i in range(0, self.size-self.size/60, self.size/60):
-            crop_cmd = mplayer_bin+" -v -nosound -vo null -sb "+str(i)+" -frames 10 -vf cropdetect '"+self.path+"'"
-            (out, err) = self.run_cmd(crop_cmd)
-            if out:
-                self.extract_crop(out)
-        self.logger.info("sample_video: crop is "+self.crop_spec)
-
+  
 
 
 # Testing code
