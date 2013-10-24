@@ -95,14 +95,14 @@ class video_source_mplayer(video_source):
         """
         Our string representation
         """
-        results = super(self.__class__,self).__str__().split(", ")
+        results = super(video_source_mplayer, self).__str__().split(", ")
         if len(self.audio_tracks)>0:
             results.append("Audio tracks: %d" % (len(self.audio_tracks)))
 
         return ", ".join(results)
 
     def analyse_video(self):
-        super(self.__class__,self).analyse_video()
+        super(video_source_mplayer,self).analyse_video()
         self.identify_video()
         self.sample_video()
 
