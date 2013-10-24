@@ -38,7 +38,7 @@ class video_source(object):
         self.args = args
         self.logger = logger
         self.logger.info("video_source(%s)" % (self.path))
-        if self.args.dump:
+        if hasattr(self.args, 'dump'):
             self.dump = open(self.args.dump, "w")
         else:
             self.dump = None
