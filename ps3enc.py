@@ -59,6 +59,7 @@ output_options = parser.add_argument_group("Logging and output")
 output_options.add_argument('-v', '--verbose', action='count', default=None, help='Be verbose in output')
 output_options.add_argument('-q', '--quiet', action='store_false', dest='verbose', help="Supress output")
 output_options.add_argument('-l', '--log', default=None, help="output to a log file")
+output_options.add_argument('-d', '--dump', default=None, help="dump data from runs to file")
 output_options.add_argument('--debug', action='store_true', default=False, help="Debug mode, don't delete temp files")
 
 encode_options = parser.add_argument_group('Encoding control')
@@ -129,6 +130,7 @@ class mencoder(object):
         if self.args.skip_encode and os.path.exists(dst_file):
             logger.info("Skipping generation of: "+dst_file)
         else:
+            logger.debug("running: %s" % (command))
             args = shlex.split(command)
             p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
             while p.returncode == None:
@@ -158,7 +160,7 @@ class mencoder(object):
         """
         return a mencoder command string
         """
-        cmd = "%s -v %s" % (mencoder_bin, self.src_file)
+        cmd = "%s -v '%s'" % (mencoder_bin, self.src_file)
 
         # Do we want to valgrind it?
         if self.args.valgrind:
