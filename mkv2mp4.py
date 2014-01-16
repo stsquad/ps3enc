@@ -32,7 +32,7 @@ mkvinfo_track_number_re = re.compile('\+ Track number: ([0-9]+)')
 mkvinfo_track_type_re = re.compile('\+ Track type: (.*)')
 mkvinfo_codec_id_re = re.compile('\+ Codec ID: (.*)')
 mkvinfo_video_fps_re = \
-         re.compile('\+ Default duration: .*ms \((.*) fps for a video track\)')
+         re.compile('\+ Default duration: .*ms \((.*) (fps|frames/fields per second) for a video track\)')
 mkvinfo_audio_channels_re = re.compile('\+ Channels: ([0-9]+)')
 
 # Values for the track type field in the mkvinfo output.
