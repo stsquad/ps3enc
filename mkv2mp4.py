@@ -226,32 +226,36 @@ class AudioTrack:
     # Convert the audio file to the target format.
     # Currently converts to AAC using ffmpeg.
     def convert(self):
-        if audio_encoder == "neroAacEnc":
-            print "%s: Decoding audio using ffmpeg..." % timestamp()
-            temp_wav_filename = re.sub('(\.[^\.]*)$', '.wav', self.filename)
-            log("Calling ffmpeg to decode audio")
-            subprocess.call(["ffmpeg", \
-                             "-i", self.filename, \
-                             "-ac", "2", \
-                             temp_wav_filename])
-            print "%s: Audio decoding complete.\n" % timestamp()
-            print "%s: Encoding audio using neroAacEnc..." % timestamp()
-            self.output_filename = re.sub('(\.[^\.]*)$', '.m4a', self.filename)
-            subprocess.call(["neroAacEnc", "-lc", "-q", "0.5", \
-                             "-if", temp_wav_filename, "-of", self.output_filename])
-            if delete_temp_files:
-                os.remove(temp_wav_filename)
-        elif audio_encoder == "ffmpeg":
-            print "%s: Transcoding audio using ffmpeg..." % timestamp()
-            self.output_filename = re.sub('(\.[^\.]*)$', '.aac', self.filename)
-            log("Calling ffmpeg to transcode audio")
-            subprocess.call(["ffmpeg", \
-                             "-i", self.filename, \
-                             "-acodec", "libfaac", \
-                             "-ac", "2", \
-                             "-ab", "160000", \
-                             self.output_filename])
-        print "%s: Audio transcoding complete.\n" % timestamp()
+        if self.audio_type == "aac":
+            log("skipping conversion")
+            self.output_filename = self.filename
+        else:
+            if audio_encoder == "neroAacEnc":
+                print "%s: Decoding audio using ffmpeg..." % timestamp()
+                temp_wav_filename = re.sub('(\.[^\.]*)$', '.wav', self.filename)
+                log("Calling ffmpeg to decode audio")
+                subprocess.call(["ffmpeg", \
+                                 "-i", self.filename, \
+                                 "-ac", "2", \
+                                 temp_wav_filename])
+                print "%s: Audio decoding complete.\n" % timestamp()
+                print "%s: Encoding audio using neroAacEnc..." % timestamp()
+                self.output_filename = re.sub('(\.[^\.]*)$', '.m4a', self.filename)
+                subprocess.call(["neroAacEnc", "-lc", "-q", "0.5", \
+                                 "-if", temp_wav_filename, "-of", self.output_filename])
+                if delete_temp_files:
+                    os.remove(temp_wav_filename)
+            elif audio_encoder == "ffmpeg":
+                print "%s: Transcoding audio using ffmpeg..." % timestamp()
+                self.output_filename = re.sub('(\.[^\.]*)$', '.aac', self.filename)
+                log("Calling ffmpeg to transcode audio")
+                subprocess.call(["ffmpeg", \
+                                 "-i", self.filename, \
+                                 "-acodec", "libfaac", \
+                                 "-ac", "2", \
+                                 "-ab", "160000", \
+                                 self.output_filename])
+                print "%s: Audio transcoding complete.\n" % timestamp()
         return self.output_filename
 
     # Delete intermediate files.
