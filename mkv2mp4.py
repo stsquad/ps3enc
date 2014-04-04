@@ -28,7 +28,7 @@ file_is_mp4_re = re.compile('(\.mp4)$')
 mkvinfo_start_re = re.compile('\+ EBML head')
 mkvinfo_segment_tracks_re = re.compile('\+ Segment tracks')
 mkvinfo_a_track_re = re.compile('\+ A track')
-mkvinfo_track_number_re = re.compile('\+ Track number: ([0-9]+)')
+mkvinfo_track_number_re = re.compile('\+ Track number: ([0-9]+) \(track ID for mkvmerge & mkvextract: ([0-9]+)\)')
 mkvinfo_track_type_re = re.compile('\+ Track type: (.*)')
 mkvinfo_codec_id_re = re.compile('\+ Codec ID: (.*)')
 mkvinfo_video_fps_re = \
@@ -139,7 +139,7 @@ class InputFile:
 
             track_number_match = mkvinfo_track_number_re.search(line)
             if track_number_match != None:
-                track['num'] = track_number_match.group(1)
+                track['num'] = track_number_match.group(2)
 
             track_type_match = mkvinfo_track_type_re.search(line)
             if track_type_match != None:
