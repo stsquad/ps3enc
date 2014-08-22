@@ -64,10 +64,13 @@ output_options.add_argument('--debug', action='store_true', default=False, help=
 
 encode_options = parser.add_argument_group('Encoding control')
 encode_options.add_argument('-b', '--bitrate', metavar="n", type=int, dest="video_bitrate", default=2000, help="video encoding bitrate")
-encode_options.add_argument('--audio_bitrate', metavar="n", type=int, dest="audio_bitrate", default=128, help="audio encoding bitrate")
+encode_options.add_argument('--audio_bitrate', metavar="n", type=int, dest="audio_bitrate", default=192, help="audio encoding bitrate")
 encode_options.add_argument('-p', '--passes', metavar="n", type=int, default=3, help="Number of encoding passes (default 3)")
 encode_options.add_argument('-c', '--cartoon', action="store_true", help="Assume we are encoding a cartoon (lower bitrate + filters)")
-encode_options.add_argument('-f', '--film', action="store_true", help="Assume we are encoding a film (higher bitrate)")
+encode_options.add_argument('-f', '--film', dest="video_bitrate", action="store_const", const=3000,
+                            help="Assume we are encoding a film (higher bitrate)")
+encode_options.add_argument('--hdfilm', dest="video_bitrate", action="store_const", const=5000,
+                            help="Assume we are encoding a HD film (even higher bitrate)")
 encode_options.add_argument('-t', '--test', action="store_true", help="Do a test segment")
 encode_options.add_argument('-a', '--alang', type=int, default=None, help="Select differnt audio channel")
 encode_options.add_argument('--slang', dest="slang", type=int, default=None, help="Bake in language subtitles")
@@ -353,9 +356,6 @@ if __name__ == "__main__":
     if args.cartoon:
         args.passes=1
         args.video_bitrate=1500
-    if args.film:
-        args.video_bitrate=3000
-        args.audio_bitrate=192
 
     logger.debug("args: %s" % (args))
             
