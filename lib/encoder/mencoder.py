@@ -1,6 +1,14 @@
 #!/usr/bin/python
 #
 # Mencoder Wrapper
+import subprocess
+import shlex
+import os
+import logging
+logger = logging.getLogger("ps3enc.mencoder")
+
+from encoder import encoder
+mencoder_bin="/usr/bin/mencoder"
 
 # Some exceptions
 class MencoderError(Exception):
@@ -9,7 +17,7 @@ class MencoderError(Exception):
     def __str__(self):
         return repr(self.reason)
 
-class mencoder(object):
+class mencoder(encoder):
     """
     Helper object to wrap around mencoder calls. Instantiate one per
     file to be encoded

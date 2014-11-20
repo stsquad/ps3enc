@@ -37,10 +37,9 @@ else:
     logger.info("sys.argv[0] is %s" % (realpath(dirname(sys.argv[0]))))
 
 from video_source_factory import get_video_source
-from encoder import mencoder
+from encoder.mencoder import mencoder,MencoderError
 
 mplayer_bin="/usr/bin/mplayer"
-mencoder_bin="/usr/bin/mencoder"
 mp4box_bin="/usr/bin/MP4Box"
 
 me=os.path.basename(sys.argv[0])
