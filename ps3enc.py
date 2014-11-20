@@ -73,7 +73,7 @@ encode_options.add_argument('--hdfilm', dest="video_bitrate", action="store_cons
                             help="Assume we are encoding a HD film (even higher bitrate)")
 encode_options.add_argument('-t', '--test', action="store_true", help="Do a test segment")
 encode_options.add_argument('-a', '--alang', type=int, default=None, help="Select differnt audio channel")
-encode_options.add_argument('--slang', dest="slang", type=int, default=None, help="Bake in language subtitles")
+encode_options.add_argument('--slang', dest="slang", type=int, default=-1, help="Bake in language subtitles")
 
 package_options = parser.add_argument_group('Packaging')
 package_options.add_argument('--pkg', action="store_true", help="Don't encode, just package files into MP4")
@@ -175,7 +175,7 @@ class mencoder(object):
         # position
         if self.args.test:
             cmd = cmd + " -ss 20:00 -endpos 120 "
-        if self.args.slang:
+        if self.args.slang >= 0:
             cmd = "%s -sid %d" % (cmd, self.args.slang)
         else:
             cmd = "%s -nosub " % (cmd)
