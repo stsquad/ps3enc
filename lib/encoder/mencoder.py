@@ -28,36 +28,6 @@ class mencoder(encoder):
         self.src_file = src_file
         self.crop = crop
 
-    def run(self, command, dst_file):
-        if self.args.skip_encode and os.path.exists(dst_file):
-            logger.info("Skipping generation of: "+dst_file)
-        else:
-            logger.debug("running: %s" % (command))
-            args = shlex.split(command)
-            p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
-            while p.returncode == None:
-                status = p.stdout.readlines(4096)
-
-                if status and self.args.verbose:
-                    line = status[-1]
-                    if line.startswith("Pos:"):
-                        line.rstrip()
-                        sys.stdout.write("\r"+line)
-                        sys.stdout.flush()
-                    else:
-                        break
-            
-            # Grab final bits
-            (out, err) = p.communicate()
-            logger.debug("mencoder complete with %d (%s)" % (p.returncode, err))
-            if p.returncode != 0:
-                raise MencoderError("mencoder failed ((%d/%s)" % (p.returncode, out))
-
-        if os.path.exists(dst_file):
-            return dst_file
-        else:
-            raise MencoderError("Missing output file: %s" % dst_file)
-
     def build_cmd(self, dst_file, encode_audio=False, epass=1):
         """
         return a mencoder command string

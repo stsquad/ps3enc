@@ -37,7 +37,9 @@ else:
     logger.info("sys.argv[0] is %s" % (realpath(dirname(sys.argv[0]))))
 
 from video_source_factory import get_video_source
-from encoder.mencoder import mencoder,MencoderError
+from encoder.encoder import EncoderException
+from encoder.mencoder import mencoder
+from encoder.ffmpeg import ffmpeg
 
 mplayer_bin="/usr/bin/mplayer"
 mp4box_bin="/usr/bin/MP4Box"
@@ -63,6 +65,7 @@ output_options.add_argument('-d', '--dump', default=None, help="dump data from r
 output_options.add_argument('--debug', action='store_true', default=False, help="Debug mode, don't delete temp files")
 
 encode_options = parser.add_argument_group('Encoding control')
+encode_options.add_argument('-e', '--encoder', default="mencoder", help="encoder to use")
 encode_options.add_argument('-b', '--bitrate', metavar="n", type=int, dest="video_bitrate", default=2000, help="video encoding bitrate")
 encode_options.add_argument('--audio_bitrate', metavar="n", type=int, dest="audio_bitrate", default=192, help="audio encoding bitrate")
 encode_options.add_argument('-p', '--passes', metavar="n", type=int, default=3, help="Number of encoding passes (default 3)")
@@ -201,7 +204,10 @@ def process_input(args, vob_file):
         crop = video.crop_spec
     logger.info("Calculated crop of %s for %s" % (crop, vob_file))
 
-    encoder = mencoder(args, vob_file, crop)
+    if args.encoder == "mencoder":
+        encoder = mencoder(args, vob_file, crop)
+    else:
+        encoder = ffmpeg(args, vob_file, crop)
 
     try:
         if args.passes>1:
@@ -226,7 +232,7 @@ def process_input(args, vob_file):
                 for tf in temp_files:
                     os.unlink(tf)
                 shutil.rmtree(temp_dir)
-    except MencoderError as e:
+    except Exception as e:
         logger.warning("error: %s" % str(e))
 
 
