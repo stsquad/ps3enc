@@ -202,7 +202,7 @@ def process_input(args, vob_file):
         crop = ""
     else:
         crop = video.crop_spec
-    logger.info("Calculated crop of %s for %s" % (crop, vob_file))
+        logger.info("Calculated crop of %s for %s" % (crop, vob_file))
 
     if args.encoder == "mencoder":
         encoder = mencoder(args, vob_file, crop)
@@ -214,10 +214,10 @@ def process_input(args, vob_file):
             tf = calc_temp_pathspec(vob_file, "turbo.avi", temp_dir)
             temp_files.append(encoder.turbo_pass(tf))
             for i in range(2, args.passes+1):
-                tf = calc_temp_pathspec(vob_file, "pass"+str(i)+".avi", temp_dir)
+                tf = calc_temp_pathspec(vob_file, "pass"+str(i), temp_dir)
                 temp_files.append(encoder.encoding_pass(tf, 3))
         else:
-            tf = calc_temp_pathspec(vob_file, "singlepass.avi", temp_dir)
+            tf = calc_temp_pathspec(vob_file, "singlepass", temp_dir)
             temp_files.append(encoder.encoding_pass(tf))
 
 
@@ -225,13 +225,18 @@ def process_input(args, vob_file):
         logger.info("Final encode of %s is %s" % (vob_file, ff))
 
         if os.path.exists(ff):
-            logger.info("Final file is: %s", (ff))
-            package_mp4(args, ff, temp_dir, dir, video.fps)
-            os.chdir(start_dir)
+            if ff.endswith(".avi"):
+                logger.info("Repackage final file is: %s", (ff))
+                package_mp4(args, ff, temp_dir, dir, video.fps)
+                os.chdir(start_dir)
+            else:
+                logger.info("Copy final file: %s", (ff))
+                shutil.move(ff, start_dir)
+                
             if not args.debug:
                 for tf in temp_files:
                     os.unlink(tf)
-                shutil.rmtree(temp_dir)
+                    shutil.rmtree(temp_dir)
     except Exception as e:
         logger.warning("error: %s" % str(e))
 

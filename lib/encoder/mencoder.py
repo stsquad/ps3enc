@@ -88,6 +88,7 @@ class mencoder(encoder):
         """
         Do a fast turbo pass encode of the file
         """
+        dst_file = dst_file+".avi"
         # my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
         turbo_cmd = self.build_cmd(dst_file, False, 1)
         return self.run(turbo_cmd, dst_file)
@@ -96,5 +97,6 @@ class mencoder(encoder):
         """
         Normal multi-stage encoding pass
         """
+        dst_file = dst_file+".avi"
         encode_cmd = self.build_cmd(dst_file, True, epass)
         return self.run(encode_cmd, dst_file)

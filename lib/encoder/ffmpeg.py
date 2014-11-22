@@ -87,6 +87,7 @@ class ffmpeg(encoder):
         """
         Do a fast turbo pass encode of the file
         """
+        dst_file = dst_file+".mp4"
         turbo_cmd = self.build_cmd(dst_file, False, 1)
         return self.run(turbo_cmd, dst_file)
 
@@ -94,6 +95,7 @@ class ffmpeg(encoder):
         """
         Normal multi-stage encoding pass
         """
+        dst_file = dst_file+".mp4"
         logger.info("encoding_pass: %s" % (dst_file))
         encode_cmd = self.build_cmd(dst_file, True, epass)
         return self.run(encode_cmd, dst_file)
