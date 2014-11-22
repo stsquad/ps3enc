@@ -34,12 +34,16 @@ class ffmpeg(encoder):
         """
         return a ffmpeg command string
         """
+        logger.info("build_cmd: %s, pass=%d" %(dst_file, epass))
         cmd = "%s -y -i '%s'" % (ffmpeg_bin, self.src_file)
+        logger.info("build_cmd: %s" % (cmd))
 
         cmd = "%s -pass %d " % (cmd, epass)
+        logger.info("build_cmd: %s" % (cmd))
 
         # general encoding options
-        cmd = cmd + "-vcodec libx264 -profile:v baseline -level 3.0 -crf 24 -threads 0"
+        cmd = cmd + "-vcodec libx264 -profile:v baseline -level 3.0 -crf 18 -threads 0"
+        logger.info("build_cmd: %s" % (cmd))
 
         # position
         if self.args.test:
@@ -50,13 +54,15 @@ class ffmpeg(encoder):
         #     cmd = "%s -nosub " % (cmd)
         # if self.args.alang:
         #     cmd = "%s -aid %d" % (cmd, self.args.alang)
+        logger.info("build_cmd: %s" % (cmd))
 
         # audio encoding
         # cmd = cmd + " -oac " + oac_args
         if encode_audio:
-            cmd = "%s -acodec libfaac -ab 128k -ac 2 -ar 48000" % (cmd, self.args.audio_bitrate)
+            cmd = "%s -acodec libfaac -ab 128k -ac 2 -ar 48000" % (cmd) #, self.args.audio_bitrate)
         else:
             cmd = cmd + " -c:a copy "
+        logger.info("build_cmd: %s" % (cmd))
 
         # crop params
         # if self.crop:
@@ -69,7 +75,8 @@ class ffmpeg(encoder):
         # if self.args.cartoon:
         #     cmd = cmd + ",pp=md"
 
-        cmd = cmd + "'" + dst_file + "'"
+        cmd = cmd + " '" + dst_file + "'"
+        logger.info("build_cmd: %s" % (cmd))
 
 
         logger.debug("cmd: %s" % (cmd))
@@ -87,5 +94,6 @@ class ffmpeg(encoder):
         """
         Normal multi-stage encoding pass
         """
+        logger.info("encoding_pass: %s" % (dst_file))
         encode_cmd = self.build_cmd(dst_file, True, epass)
         return self.run(encode_cmd, dst_file)
