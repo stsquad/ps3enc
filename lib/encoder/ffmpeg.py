@@ -38,11 +38,25 @@ class ffmpeg(encoder):
         cmd = "%s -y -i '%s'" % (ffmpeg_bin, self.src_file)
         logger.info("build_cmd: %s" % (cmd))
 
-        cmd = "%s -pass %d " % (cmd, epass)
-        logger.info("build_cmd: %s" % (cmd))
+        # For ffmpeg pass 2 is the final pass, pass 3 if we keep collecting data
+        if self.args.passes > 1:
+            if epass == self.args.passes:
+                # final pass
+                cmd = "%s -pass 2 " % (cmd)
+            elif epass == 1:
+                # turbos pass
+                cmd = "%s -pass 1 " % (cmd)
+            else:
+                # nth pass
+                cmd = "%s -pass 3 " % (cmd)
+            cmd = cmd + "-vcodec mpeg4 -b:v 10M"
+        else:
+            # Single pass @ CRF
+            cmd = "%s -pass %d " % (cmd, epass)
+            cmd = cmd + "-vcodec libx264 -profile:v baseline -level 3.0 -crf 18"
 
-        # general encoding options
-        cmd = cmd + "-vcodec libx264 -profile:v baseline -level 3.0 -crf 18 -threads 0"
+        # use all the threads
+        cmd = cmd + " -threads 0"
         logger.info("build_cmd: %s" % (cmd))
 
         # position
@@ -61,7 +75,7 @@ class ffmpeg(encoder):
         if encode_audio:
             cmd = "%s -acodec libfaac -ab 128k -ac 2 -ar 48000" % (cmd) #, self.args.audio_bitrate)
         else:
-            cmd = cmd + " -c:a copy "
+            cmd = cmd + " -an "
         logger.info("build_cmd: %s" % (cmd))
 
         # crop params
@@ -72,8 +86,10 @@ class ffmpeg(encoder):
         # cmd = cmd + " -vf softskip,harddup"
 
         # # For cartoons post-processing median deinterlacer seems to help
-        # if self.args.cartoon:
-        #     cmd = cmd + ",pp=md"
+        if self.args.cartoon:
+            cmd = cmd + " -tune animation"
+        else:
+            cmd = cmd + " -tune film"
 
         cmd = cmd + " '" + dst_file + "'"
         logger.info("build_cmd: %s" % (cmd))

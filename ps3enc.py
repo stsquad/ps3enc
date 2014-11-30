@@ -65,10 +65,10 @@ output_options.add_argument('-d', '--dump', default=None, help="dump data from r
 output_options.add_argument('--debug', action='store_true', default=False, help="Debug mode, don't delete temp files")
 
 encode_options = parser.add_argument_group('Encoding control')
-encode_options.add_argument('-e', '--encoder', default="mencoder", help="encoder to use")
+encode_options.add_argument('-e', '--encoder', default="ffmpeg", help="encoder to use (default ffmpeg)")
 encode_options.add_argument('-b', '--bitrate', metavar="n", type=int, dest="video_bitrate", default=2000, help="video encoding bitrate")
 encode_options.add_argument('--audio_bitrate', metavar="n", type=int, dest="audio_bitrate", default=192, help="audio encoding bitrate")
-encode_options.add_argument('-p', '--passes', metavar="n", type=int, default=3, help="Number of encoding passes (default 3)")
+encode_options.add_argument('-p', '--passes', metavar="n", type=int, default=1, help="Number of encoding passes (default 1)")
 encode_options.add_argument('-c', '--cartoon', action="store_true", help="Assume we are encoding a cartoon (lower bitrate + filters)")
 encode_options.add_argument('-f', '--film', dest="video_bitrate", action="store_const", const=3000,
                             help="Assume we are encoding a film (higher bitrate)")
@@ -198,7 +198,7 @@ def process_input(args, vob_file):
     
     temp_files = [temp_dir+"/divx2pass.log"]
 
-    if args.no_crop:
+    if args.no_crop or args.encoder == "mencoder":
         crop = ""
     else:
         crop = video.crop_spec
