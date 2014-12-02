@@ -53,7 +53,7 @@ class ffmpeg(encoder):
         else:
             # Single pass @ CRF
             cmd = "%s -pass %d " % (cmd, epass)
-            cmd = cmd + "-vcodec libx264 -profile:v baseline -level 3.0 -crf 18"
+            cmd = cmd + "-vcodec libx264 -profile:v high -level 4.0 -crf 18"
 
         # use all the threads
         cmd = cmd + " -threads 0"
