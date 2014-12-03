@@ -40,6 +40,7 @@ from video_source_factory import get_video_source
 from encoder.encoder import EncoderException
 from encoder.mencoder import mencoder
 from encoder.ffmpeg import ffmpeg
+from encoder.mpv import mpv
 
 mplayer_bin="/usr/bin/mplayer"
 mp4box_bin="/usr/bin/MP4Box"
@@ -223,16 +224,18 @@ def process_input(args, vob_file):
 
     if args.encoder == "mencoder":
         encoder = mencoder(args, vob_file, crop)
+    elif args.encoder == "mpv":
+        encoder = mpv(args, vob_file, crop)
     else:
-        encoder = ffmpeg(args, vob_file, crop)
+        encoder = ffmpeg(args, vob_file)
 
     try:
         if args.passes>1:
-            tf = calc_temp_pathspec(vob_file, "turbo.avi", temp_dir)
+            tf = calc_temp_pathspec(vob_file, "turbo", temp_dir)
             temp_files.append(encoder.turbo_pass(tf))
             for i in range(2, args.passes+1):
                 tf = calc_temp_pathspec(vob_file, "pass"+str(i), temp_dir)
-                temp_files.append(encoder.encoding_pass(tf, 3))
+                temp_files.append(encoder.encoding_pass(tf, i))
         else:
             tf = calc_temp_pathspec(vob_file, "singlepass", temp_dir)
             temp_files.append(encoder.encoding_pass(tf))

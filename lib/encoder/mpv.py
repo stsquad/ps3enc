@@ -1,25 +1,20 @@
 #!/usr/bin/python
 #
-# Mencoder Wrapper
+# mpv wrapper
+
 import subprocess
 import shlex
 import os
 import logging
-logger = logging.getLogger("ps3enc.mencoder")
+logger = logging.getLogger("ps3enc.mpv")
 
 from encoder import encoder
-mencoder_bin="/usr/bin/mencoder"
+mpv_bin="/usr/bin/mpv"
 
-# Some exceptions
-class MencoderError(Exception):
-    def __init__(self, reason):
-        self.reason = reason
-    def __str__(self):
-        return repr(self.reason)
 
-class mencoder(encoder):
+class mpv(encoder):
     """
-    Helper object to wrap around mencoder calls. Instantiate one per
+    Helper object to wrap around mpv calls. Instantiate one per
     file to be encoded
     """
 
@@ -30,9 +25,9 @@ class mencoder(encoder):
 
     def build_cmd(self, dst_file, encode_audio=False, epass=1):
         """
-        return a mencoder command string
+        return a mpv command string
         """
-        cmd = "%s -v '%s'" % (mencoder_bin, self.src_file)
+        cmd = "%s -v '%s'" % (mpv_bin, self.src_file)
 
         # Do we want to valgrind it?
         if self.args.valgrind:
@@ -78,7 +73,7 @@ class mencoder(encoder):
         cmd = cmd + ":bframes=3:b_adapt=2:b_pyramid=none:weight_b:weightp=1:direct_pred=spatial:subq=6"
         cmd = cmd + ":nombtree:chroma_me:cabac:aud:aq_mode=2:deblock:vbv_maxrate=20000:vbv_bufsize=20000:level_idc=41:threads=auto:ssim:psnr"
 
-        # For mencoder pass 2 is the final pass, pass 3 if we are doing multipass
+        # For mpv pass 2 is the final pass, pass 3 if we are doing multipass
         if self.args.passes > 2:
             if epass == 1:
                 # turbo pass
@@ -102,7 +97,6 @@ class mencoder(encoder):
         Do a fast turbo pass encode of the file
         """
         dst_file = dst_file+".avi"
-        # my $pass1_cmd = "$mencoder_bin \"$source\" -ovc $ovc -oac copy $crop_opts $x264_encode_opts:bitrate=$bitrate:pass=1:turbo=1 -o $avi_file";
         turbo_cmd = self.build_cmd(dst_file, False, 1)
         return self.run(turbo_cmd, dst_file)
 
@@ -113,3 +107,4 @@ class mencoder(encoder):
         dst_file = dst_file+".avi"
         encode_cmd = self.build_cmd(dst_file, True, epass)
         return self.run(encode_cmd, dst_file)
+
