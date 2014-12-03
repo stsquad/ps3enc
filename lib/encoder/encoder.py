@@ -37,14 +37,15 @@ class encoder(object):
             while p.returncode == None:
                 status = p.stdout.readlines(4096)
 
-                if status and self.args.verbose:
-                    line = status[-1]
-                    if line.startswith("Pos:"):
-                        line.rstrip()
-                        sys.stdout.write("\r"+line)
-                        sys.stdout.flush()
-                    else:
-                        break
+                if status:
+                    if self.args.verbose:
+                        line = status[-1]
+                        if line.startswith("Pos:"):
+                            line.rstrip()
+                            sys.stdout.write("\r"+line)
+                            sys.stdout.flush()
+                else:
+                    break
             
             # Grab final bits
             (out, err) = p.communicate()
