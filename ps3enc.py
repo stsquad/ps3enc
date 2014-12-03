@@ -54,7 +54,7 @@ batch processing of encode requests. The final output is an MP4 that should play
 by default on the PS3 games systems built-in video player""")
 
 parser.add_argument('files', metavar='FILE_TO_ENCODE', nargs='+', help='File to encode')
-parser.add_argument('-n', '--no-crop', action="store_true", default=False, help="Don't try and crop the source")
+parser.add_argument('-n', '--no-crop', dest="no_crop", action="store_true", default=False, help="Don't try and crop the source")
 parser.add_argument('-s', '--skip-encode', dest="skip_encode", action="store_true", help="Skip encode and package if files are there")
 
 output_options = parser.add_argument_group("Logging and output")
