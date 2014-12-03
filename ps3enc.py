@@ -84,6 +84,23 @@ package_options.add_argument('--pkg', action="store_true", help="Don't encode, j
 dev_options = parser.add_argument_group('Developer options')
 dev_options.add_argument('--valgrind', action="store_true", help="Run the encode under valgrind (to debug mplayer)")
 
+import code, traceback, signal
+
+def debug(sig, frame):
+    """Interrupt running process, and provide a python prompt for
+    interactive debugging."""
+    d={'_frame':frame}         # Allow access to frame object.
+    d.update(frame.f_globals)  # Unless shadowed by global
+    d.update(frame.f_locals)
+
+    i = code.InteractiveConsole(d)
+    message  = "Signal recieved : entering python shell.\nTraceback:\n"
+    message += ''.join(traceback.format_stack(frame))
+    i.interact(message)
+
+def listen():
+    signal.signal(signal.SIGUSR1, debug)
+
 def setup_logging(args):
     # setup logging
     if args.verbose:
@@ -245,6 +262,10 @@ def process_input(args, vob_file):
 if __name__ == "__main__":
     args = parser.parse_args()
     setup_logging(args)
+
+    if args.debug:
+        print ("Debugging enabled on SIGUSR1")
+        listen()
 
     if args.cartoon:
         args.passes=1
