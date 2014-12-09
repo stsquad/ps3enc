@@ -62,33 +62,26 @@ class ffmpeg(encoder):
         # position
         if self.args.test:
             cmd = cmd + " -ss 20:00 -t 120 "
-        # if self.args.slang >= 0:
-        #     cmd = "%s -sid %d" % (cmd, self.args.slang)
-        # else:
-        #     cmd = "%s -nosub " % (cmd)
-        # if self.args.alang:
-        #     cmd = "%s -aid %d" % (cmd, self.args.alang)
+
+        if self.args.slang >= 0:
+            cmd = "%s -vf subtitles=%s:si=%d" % (cmd, self.src_file, self.args.slang)
+
         logger.info("build_cmd: %s" % (cmd))
 
         # audio encoding
-        # cmd = cmd + " -oac " + oac_args
         if encode_audio:
+            if self.args.alang:
+                cmd = "%s -map 0:a:%d" % (cmd, self.args.alang - 1)
             cmd = "%s -acodec libfaac -ab 128k -ac 2 -ar 48000" % (cmd) #, self.args.audio_bitrate)
         else:
             cmd = cmd + " -an "
         logger.info("build_cmd: %s" % (cmd))
 
-        # crop params
-        # if self.crop:
-        #     cmd = "%s %s" % (cmd, self.crop)
 
-        # # harddump for remuxed streams
-        # cmd = cmd + " -vf softskip,harddup"
-
-        # # For cartoons post-processing median deinterlacer seems to help
+        # We can tune specifically for different sources
         if self.args.cartoon:
             cmd = cmd + " -tune animation"
-        else:
+        elif self.args.film:
             cmd = cmd + " -tune film"
 
         cmd = cmd + " '" + dst_file + "'"
