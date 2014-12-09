@@ -76,7 +76,7 @@ encode_options.add_argument('-f', '--film', dest="video_bitrate", action="store_
 encode_options.add_argument('--hdfilm', dest="video_bitrate", action="store_const", const=5000,
                             help="Assume we are encoding a HD film (even higher bitrate)")
 encode_options.add_argument('-t', '--test', action="store_true", help="Do a test segment")
-encode_options.add_argument('-a', '--alang', type=int, default=None, help="Select differnt audio channel")
+encode_options.add_argument('-a', '--alang', type=int, default=None, help="Select different audio channel")
 encode_options.add_argument('--slang', dest="slang", type=int, default=-1, help="Bake in language subtitles")
 
 package_options = parser.add_argument_group('Packaging')
