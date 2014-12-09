@@ -35,7 +35,7 @@ class ffmpeg(encoder):
         return a ffmpeg command string
         """
         logger.info("build_cmd: %s, pass=%d" %(dst_file, epass))
-        cmd = "%s -y -i '%s'" % (ffmpeg_bin, self.src_file)
+        cmd = "%s -y -i '%s' -map 0:v " % (ffmpeg_bin, self.src_file)
         logger.info("build_cmd: %s" % (cmd))
 
         # For ffmpeg pass 2 is the final pass, pass 3 if we keep collecting data
