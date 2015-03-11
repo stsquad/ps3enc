@@ -170,7 +170,8 @@ class InputFile:
                                        "." + self.audio_type, \
                                        output_filename)
         print "%s: Extracting tracks from mkv file..." % timestamp()
-        log("\nCalling mkvextract to demux mkv file:")
+        log("\nCalling mkvextract to demux mkv file (video:%s, audio:%s):" %
+            (self.video_track_num, self.audio_track_num))
         mkvextract_retcode = subprocess.call( \
                          ["mkvextract", \
                           "tracks", \
@@ -194,7 +195,7 @@ class VideoTrack:
     #
     # Should really check this though.
     def convert(self):
-        print "%s: Updating video track..." % timestamp()
+        print ("%s: Updating video track (%s)..." % (timestamp(), self.filename))
         self.output_filename = self.filename
         file = open(self.filename, 'r+b')
         file.seek(H264_LEVEL_OFFSET)
