@@ -334,6 +334,11 @@ def main(argv):
         elif opt in ("-o", "--output-file"):
             output_filename = arg     
 
+    # If we only specify a lone file let's fill in the details
+    if len(args)==1 and input_file == "":
+        input_file = args[0]
+        output_filename = input_file.replace("mkv", "mp4")
+
     if input_file == "":
         print "Error: no input file specified"
         usage()
