@@ -278,13 +278,6 @@ class OutputFile:
                          "-fps", video_track.fps, \
                          "-add", audio_track.output_filename])
         
-        # If the output file is larger than 4GB, we need to split it or else
-        # the Xbox won't play it.
-        if (os.stat(self.filename)[ST_SIZE] > MAX_OUTPUT_FILE_SIZE * 1000):
-            subprocess.call(["MP4Box", \
-                            "-split-size", "%d" % MAX_OUTPUT_FILE_SIZE, \
-                            self.filename])
-            os.remove(self.filename)
         print "%s: Muxing complete." % timestamp()
 
 def main(argv):
