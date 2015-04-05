@@ -72,6 +72,8 @@ class ffmpeg(encoder):
         if encode_audio:
             if self.args.alang:
                 cmd = "%s -map 0:a:%d" % (cmd, self.args.alang - 1)
+            else:
+                cmd = "%s -map 0:a" % (cmd)
             cmd = "%s -acodec libfaac -ab 128k -ac 2 -ar 48000" % (cmd) #, self.args.audio_bitrate)
         else:
             cmd = cmd + " -an "
