@@ -66,7 +66,7 @@ V: 568.0 14195/14195  3%  0%  0.0% 0 0
 from video_source import video_options
 from video_logging import setup_logging
 import logging
-class_logger = logging.getLogger("video_source_dvd")
+logger = logging.getLogger("ps3enc.video_source.dvd")
 
 from video_source_mplayer import video_source_mplayer
 
@@ -78,14 +78,14 @@ class video_source_dvd(video_source_mplayer):
     def _alarm_handler(self, signum, frame):
         raise Alarm
     
-    def __init__(self, filepath, args, logger=class_logger):
+    def __init__(self, filepath, args):
         """
         >>> args = video_options().parse_args(["-q", "dvd://2"])
         >>> x = video_source_dvd(args.files[0], args)
         >>> x.track
         2
         """
-        super(video_source_dvd,self).__init__(filepath, args, logger, real_file=False)
+        super(video_source_dvd,self).__init__(filepath, args, real_file=False)
         if filepath.startswith("dvd://"):
             self.track = int(filepath.strip("dvd://"))
 
@@ -136,7 +136,6 @@ class video_source_dvd(video_source_mplayer):
 if __name__ == "__main__":
     parser = video_options()
     args = parser.parse_args()
-    setup_logging(class_logger, args)
 
     if args.unit_tests:
         import doctest

@@ -15,13 +15,13 @@ import subprocess
 # Logging, use this if none passed in
 from video_logging import setup_logging
 import logging
-class_logger = logging.getLogger("video_source")
+logger = logging.getLogger("ps3enc.video_source")
 
 class video_source(object):
     """
     A video source is a wrapper around a video file
     """
-    def __init__(self, path, args, logger=class_logger, real_file=True):
+    def __init__(self, path, real_file=True):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/file.avi"])
         >>> x = video_source('/path/to/file.avi', args, class_logger)
@@ -35,13 +35,7 @@ class video_source(object):
         '.avi'
         """
         self.path = path
-        self.args = args
-        self.logger = logger
-        self.logger.info("video_source(%s)" % (self.path))
-        if hasattr(self.args, 'dump'):
-            self.dump = open(self.args.dump, "w")
-        else:
-            self.dump = None
+        logger.info("video_source(%s)" % (self.path))
 
         # calculated values
         self.crop_spec=None
@@ -55,7 +49,7 @@ class video_source(object):
             (self.dir, self.file) = os.path.split(self.path)
             (self.base, self.extension) = os.path.splitext(self.file)
         else:
-            self.logger.warning("treating filepath as 'fake': %s" % (self.path))
+            logger.warning("treating filepath as 'fake': %s" % (self.path))
 
 
     def __str__(self):
@@ -102,18 +96,16 @@ class video_source(object):
 
         
     def run_cmd(self, command):
-        self.logger.debug("running command %s" % (command))
+        logger.debug("running command %s" % (command))
         try:
             p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
             (out, err) = p.communicate()
-            if self.dump:
-                self.dump.write(out)
             if p.returncode == 0:
                 return (out,err)
             else:
-                self.logger.error("command %s failed with %d (%s)\n" % (command, p.returncode, err))
+                logger.error("command %s failed with %d (%s)\n" % (command, p.returncode, err))
         except OSError:
-            self.logger.error("failed to spawn: "+command)
+            logger.error("failed to spawn: "+command)
 
         return (out,err)
         

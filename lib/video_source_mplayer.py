@@ -78,15 +78,15 @@ A:   2.4 V:   2.4 A-V:  0.000 ct:  0.032  54/ 54  4%  5%  0.3% 0 0
 from video_source import video_source, video_options
 from video_logging import setup_logging
 import logging
-class_logger = logging.getLogger("video_source_mplayer")
+logger = logging.getLogger("ps3enc.video_source.mplayer")
 
 class video_source_mplayer(video_source):
     """
     A generic video source that is analysed by mplayer
     """
 
-    def __init__(self, filepath, args, logger=class_logger, real_file=True):
-        super(video_source_mplayer, self).__init__(filepath, args, logger, real_file)
+    def __init__(self, filepath, real_file=True):
+        super(video_source_mplayer, self).__init__(filepath, real_file)
         # Crop calculation
         self.crop_spec=None
         self.potential_crops = {}
@@ -108,7 +108,7 @@ class video_source_mplayer(video_source):
 
     def identify_video(self):
         ident_cmd = mplayer_bin+" -identify -frames 0 '"+self.path+"'"
-        self.logger.debug("doing identify step: %s" % (ident_cmd))
+        logger.debug("doing identify step: %s" % (ident_cmd))
         self.run_cmd(ident_cmd)
 
     def extract_crop(self, out):
@@ -124,7 +124,7 @@ class video_source_mplayer(video_source):
                 self.potential_crops[m.group(0)]+=1
             except KeyError:
                 self.potential_crops[m.group(0)]=1
-                self.logger.debug("Found Crop:"+m.group(0))
+                logger.debug("Found Crop:"+m.group(0))
 
         # reduce to the most common crop?
         crop_count = 0
@@ -198,7 +198,7 @@ class video_source_mplayer(video_source):
             (out, err) = self.run_cmd(crop_cmd)
             if out:
                 self.extract_crop(out)
-        self.logger.info("sample_video: crop is "+self.crop_spec)
+        logger.info("sample_video: crop is "+self.crop_spec)
 
 
 
