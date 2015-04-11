@@ -36,7 +36,7 @@ if os.path.exists(devlibs):
 else:
     logger.info("sys.argv[0] is %s" % (realpath(dirname(sys.argv[0]))))
 
-from video_source_factory import get_video_source
+from video_source.factory import get_video_source
 from encoder.encoder import EncoderException
 from encoder.mencoder import mencoder
 from encoder.ffmpeg import ffmpeg
