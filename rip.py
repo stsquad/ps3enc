@@ -269,7 +269,7 @@ if __name__ == "__main__":
     
     for t in rip_tracks:
         if direct_encode:
-            encode_track("dvd://%d" % (t))
+            encode_track("dvd://%d" % int(t))
         else:
             process_track(base, title, t)
         base=base+1
