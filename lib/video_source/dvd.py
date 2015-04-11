@@ -64,13 +64,12 @@ V: 568.0 14195/14195  3%  0%  0.0% 0 0
 """
 
 from video_source import video_options
-from video_logging import setup_logging
+# from video_source.mplayer import mplayer
+from mplayer import mplayer
 import logging
 logger = logging.getLogger("ps3enc.video_source.dvd")
 
-from video_source_mplayer import video_source_mplayer
-
-class video_source_dvd(video_source_mplayer):
+class dvd(mplayer):
     """
     A video source is a wrapper around direct DVD access
     """
@@ -78,36 +77,16 @@ class video_source_dvd(video_source_mplayer):
     def _alarm_handler(self, signum, frame):
         raise Alarm
     
-    def __init__(self, filepath, args):
+    def __init__(self, filepath):
         """
         >>> args = video_options().parse_args(["-q", "dvd://2"])
-        >>> x = video_source_dvd(args.files[0], args)
+        >>> x = dvd(args.files[0])
         >>> x.track
         2
         """
-        super(video_source_dvd,self).__init__(filepath, args, real_file=False)
+        super(dvd, self).__init__(filepath, real_file=False)
         if filepath.startswith("dvd://"):
             self.track = int(filepath.strip("dvd://"))
-
-    def extract_crop(self, out):
-        """
-        >>> args = video_options().parse_args(["-q", "dvd://2"])
-        >>> x = video_source_dvd(args.files[0], args)
-        >>> x.extract_crop(crop_test_output)
-        >>> print x.crop_spec
-        "-vf crop=704:416:8:78"
-        """
-        m = re.findall("\-vf crop=[-0123456789:]*", out)
-        if m:
-            total = len(m)
-            keep = int(total/2)
-            film_matches = m[keep:]
-            if self.verbose: print "found %d crop descriptions, keeping %d" % (total, keep)
-            for match in film_matches:
-                try:
-                    self.potential_crops[match]+=1
-                except KeyError:
-                    self.potential_crops[match]=1
         
     def sample_video(self):
         """
@@ -143,21 +122,17 @@ if __name__ == "__main__":
     else:
         print "falling through"
         
-    if len(args)>=1:
-        for a in args:
-            if a.startswith("dvd://") or a.endswith(".vob"):
-                v = video_source_dvd(a, args, class_logger)
-            else:
-                print "video_source_dvd: for DVD files"
-                exit -1
-            if args.identify:
-                v.identify_video()
-            if args.analyse:
-                v.analyse_video()
-            print v
-    else:
-        import doctest
-        doctest.testmod()
+    for a in args.files:
+        if a.startswith("dvd://") or a.endswith(".vob"):
+            v = video_source_dvd(a, args, class_logger)
+        else:
+            print "video_source_dvd: for DVD files"
+            exit -1
+        if args.identify:
+            v.identify_video()
+        if args.analyse:
+            v.analyse_video()
+        print v
         
         
 

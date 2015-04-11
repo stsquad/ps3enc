@@ -76,17 +76,16 @@ A:   2.4 V:   2.4 A-V:  0.000 ct:  0.032  54/ 54  4%  5%  0.3% 0 0
 """
 
 from video_source import video_source, video_options
-from video_logging import setup_logging
 import logging
 logger = logging.getLogger("ps3enc.video_source.mplayer")
 
-class video_source_mplayer(video_source):
+class mplayer(video_source):
     """
     A generic video source that is analysed by mplayer
     """
 
     def __init__(self, filepath, real_file=True):
-        super(video_source_mplayer, self).__init__(filepath, real_file)
+        super(mplayer, self).__init__(filepath, real_file)
         # Crop calculation
         self.crop_spec=None
         self.potential_crops = {}
@@ -95,14 +94,14 @@ class video_source_mplayer(video_source):
         """
         Our string representation
         """
-        results = super(video_source_mplayer, self).__str__().split(", ")
+        results = super(mplayer, self).__str__().split(", ")
         if len(self.audio_tracks)>0:
             results.append("Audio tracks: %d" % (len(self.audio_tracks)))
 
         return ", ".join(results)
 
     def analyse_video(self):
-        super(video_source_mplayer,self).analyse_video()
+        super(mplayer,self).analyse_video()
         self.identify_video()
         self.sample_video()
 
@@ -114,7 +113,7 @@ class video_source_mplayer(video_source):
     def extract_crop(self, out):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/file.avi"])
-        >>> x = video_source_mplayer(args.files[0], args)
+        >>> x = mplayer(args.files[0], args)
         >>> x.extract_crop(crop_test_output)
         >>> print x.crop_spec
         -vf crop=720:560:0:8
@@ -137,7 +136,7 @@ class video_source_mplayer(video_source):
     def extract_fps(self, out):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/file.avi"])
-        >>> x = video_source_mplayer(args.files[0], args)
+        >>> x = mplayer(args.files[0], args)
         >>> x.extract_fps(ident_test_output)
         >>> print x.fps
         25.000
@@ -151,7 +150,7 @@ class video_source_mplayer(video_source):
     def extract_video_codec(self, out):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/file"])
-        >>> x = video_source_mplayer(args.files[0], args)
+        >>> x = mplayer(args.files[0], args)
         >>> x.extract_video_codec(ident_test_output)
         >>> print x.video_codec
         ffmpeg2
@@ -165,7 +164,7 @@ class video_source_mplayer(video_source):
     def extract_audio(self, out):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/file"])
-        >>> x = video_source_mplayer(args.files[0], args)
+        >>> x = mplayer(args.files[0], args)
         >>> x.extract_audio(ident_test_output)
         >>> print x.audio_tracks
         ['128', '129', '130']
@@ -178,7 +177,7 @@ class video_source_mplayer(video_source):
     def extract_audio_codec(self, out):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/file"])
-        >>> x = video_source_mplayer(args.files[0], args)
+        >>> x = mplayer(args.files[0], args)
         >>> x.extract_audio_codec(ident_test_output)
         >>> print x.audio_codec
         ffac3
@@ -206,21 +205,22 @@ class video_source_mplayer(video_source):
 if __name__ == "__main__":
     parser = video_options()
     args = parser.parse_args()
-    setup_logging(class_logger, args)
 
+    if args.unit_tests:
+        import doctest
+        doctest.testmod()
+    
     for a in args.files:
         if a.startswith("dvd://"):
-            v = video_source_mplayer(a, args, class_logger)
+            v = mplayer(a, args)
         else:
             fp = os.path.realpath(a)
-            v = video_source_mplayer(fp, args, class_logger)
+            v = mplayer(fp, args)
         if args.identify:
             v.identify_video()
         if args.analyse:
             v.analyse_video()
         print v
-    else:
-        import doctest
-        doctest.testmod()
+
         
         

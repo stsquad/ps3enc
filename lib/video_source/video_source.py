@@ -12,8 +12,6 @@
 import os
 import subprocess
 
-# Logging, use this if none passed in
-from video_logging import setup_logging
 import logging
 logger = logging.getLogger("ps3enc.video_source")
 
@@ -118,7 +116,7 @@ from argparse import ArgumentParser
 
 def video_options():
     parser=ArgumentParser(description="Video Source analysis options")
-    parser.add_argument('files', metavar='FILE_TO_ANALYSE', nargs='+', help='Files to analyse')
+    parser.add_argument('files', metavar='FILE_TO_ANALYSE', nargs='*', help='Files to analyse')
 
     output_options = parser.add_argument_group("Logging and output")
     output_options.add_argument('-v', '--verbose', action='count', default=None, help='Be verbose in output')
@@ -149,7 +147,6 @@ def video_options():
 if __name__ == "__main__":
     parser = video_options()
     args = parser.parse_args()
-    setup_logging(class_logger, args)
 
     for a in args.files:
         fp = os.path.realpath(a)

@@ -75,10 +75,9 @@ A:   2.3 V:   2.3 A-V:  0.000 ct:  0.032  53/ 53  4%  5%  0.3% 0 0
 A:   2.4 V:   2.4 A-V:  0.000 ct:  0.032  54/ 54  4%  5%  0.3% 0 0
 """
 
-from video_source_mplayer import video_source_mplayer
+from mplayer import mplayer
 
-
-class video_source_avi(video_source_mplayer):
+class avi(mplayer):
     """
     A video source is a wrapper around an AVI file
     """
