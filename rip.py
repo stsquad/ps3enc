@@ -18,12 +18,10 @@ logger = logging.getLogger("rip")
 
 verbose=0
 use_vlc=False
-encode="list"
 single_episode=False
 ripdir=os.getenv("HOME")+"/tmp"
 base=1
 maxl=None
-encode=True
 # dvd=None
 nonav=False
 
@@ -49,6 +47,7 @@ general_opts.add_argument('-l', '--log', default=None, help="output to a log fil
 
 source_opts = parser.add_argument_group("Source Options")
 source_opts.add_argument("--dvd", help="Manually specify the DVD device.")
+source_opts.add_argument("--nonav", default=False, action="store_true", help="Don't use dvdnav selector.")
 
 track_opts = parser.add_argument_group("Track Options")
 track_opts.add_argument('-1', '--single', dest="single_episode", default=False, help="rip a single episode")
@@ -59,6 +58,7 @@ track_opts.add_argument('--min', default=None, help="Min episode time (in minute
 track_opts.add_argument('-t', '--tracks', dest="track_list", type=int, default=[], nargs="+", help="List of tracks to rip")
 
 output_opts = parser.add_argument_group("Output options")
+output_opts.add_argument('-r', '--rip-only', dest="encode", default=True, action="store_false")
 output_opts.add_argument('--title', default=None, help="Set the base title of the series")
 output_opts.add_argument('--season', default=1, type=int, help="Set the base season of the series")
 output_opts.add_argument('--base', default=1, type=int, help="Set the base season of the series")
@@ -89,7 +89,7 @@ def process_track(args, base, track):
     if use_vlc:
         rip_cmd="vlc -I rc dvd:/dev/hda@"+str(track)+' --sout "#standard{access=file,mux=ps,dst='+dump_file+'}"'
     else:
-        if nonav:
+        if args.nonav:
             nav = "dvd://"+str(track)
         else:
             nav = "dvdnav://"+str(track)
@@ -103,7 +103,7 @@ def process_track(args, base, track):
     if not args.pretend:
         os.system(rip_cmd)
 
-    if encode:
+    if args.encode:
         # Now we have ripped the file spawn ps3enc.py to deal with it
         enc_cmd="nice ps3enc.py "+args.encode_options+dump_file+" > /dev/null 2>&1 &"
         logger.debug("cmd: %s" % (enc_cmd))
