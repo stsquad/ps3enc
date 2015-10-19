@@ -19,10 +19,10 @@ class video_source(object):
     """
     A video source is a wrapper around a video file
     """
-    def __init__(self, path, real_file=True):
+    def __init__(self, path, args, real_file=True):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/file.avi"])
-        >>> x = video_source('/path/to/file.avi', args, class_logger)
+        >>> x = video_source('/path/to/file.avi', args)
         >>> x.dir
         '/path/to'
         >>> x.file
@@ -32,6 +32,7 @@ class video_source(object):
         >>> x.extension
         '.avi'
         """
+        self.args = args
         self.path = path
         logger.info("video_source(%s)" % (self.path))
 
@@ -53,7 +54,7 @@ class video_source(object):
     def __str__(self):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/fake/file.avi"])
-        >>> x = video_source(args.files[0], args, class_logger)
+        >>> x = video_source(args.files[0], args)
         >>> print x.file
         file.avi
         >>> print x
@@ -78,7 +79,7 @@ class video_source(object):
     def filepath(self):
         """
         >>> args = video_options().parse_args(["-q", "/path/to/fake/file.avi"])
-        >>> x = video_source(args.files[0], args, class_logger)
+        >>> x = video_source(args.files[0], args)
         >>> x.filepath()
         '/path/to/fake/file.avi'
         """
@@ -148,11 +149,15 @@ if __name__ == "__main__":
     parser = video_options()
     args = parser.parse_args()
 
-    for a in args.files:
-        fp = os.path.realpath(a)
-        v = video_source(fp, args, class_logger)
-        v.analyse_video()
-        print v
+    if args.unit_tests:
+        import doctest
+        doctest.testmod()
+    else:
+        for a in args.files:
+            fp = os.path.realpath(a)
+            v = video_source(fp, args)
+            v.analyse_video()
+            print v
 
 
 
