@@ -26,8 +26,6 @@ maxl=None
 encode=True
 # dvd=None
 nonav=False
-encode_options=""
-direct_encode=False
 
 # Round to nearest n minutes
 round_factor=6
@@ -58,23 +56,29 @@ track_opts.add_argument('-e', '--episodes', dest="single_episode", action="store
 track_opts.add_argument('--limit', default=20, type=int, help="Limit to the first N episodes")
 track_opts.add_argument('--max', default=None, help="Max episode time (in minutes)")
 track_opts.add_argument('--min', default=None, help="Min episode time (in minutes)")
-track_opts.add_argument('-t', '--tracks', dest="track_list", default=[], help="Comma seperated list of tracks to rip")
+track_opts.add_argument('-t', '--tracks', dest="track_list", type=int, default=[], nargs="+", help="List of tracks to rip")
 
 output_opts = parser.add_argument_group("Output options")
 output_opts.add_argument('--title', default=None, help="Set the base title of the series")
 output_opts.add_argument('--season', default=1, type=int, help="Set the base season of the series")
 output_opts.add_argument('--base', default=1, type=int, help="Set the base season of the series")
+output_opts.add_argument('--encode-options', default="", help="Pass string to ps3enc")
+output_opts.add_argument('--direct', dest="direct_encode", default=False, action="store_true", help="Encode directly, don't rip")
 
 def encode_track(path):
-    enc_cmd = "ps3enc.py -v %s %s" % (path, encode_options)
+    enc_cmd = "ps3enc.py -v %s %s" % (path, args.encode_options)
     if verbose>0: print "cmd: %s" % (enc_cmd)
     os.system(enc_cmd)
 
 def process_track(args, base, track):
-    name="%s - s%02de%02d" % (args.title, args.season, args.base)
+    if (args.single_episode):
+        name = args.title
+    else:
+        name = "s%02de%02d" % (args.season, base)
+
     logging.info("Ripping: %s as %s" % (track, name))
 
-    dump_dir=ripdir+"/"+name
+    dump_dir=ripdir+"/"+args.title
 
     if not os.path.isdir(dump_dir):
         os.makedirs(dump_dir)
@@ -101,7 +105,7 @@ def process_track(args, base, track):
 
     if encode:
         # Now we have ripped the file spawn ps3enc.py to deal with it
-        enc_cmd="nice ps3enc.py "+encode_options+dump_file+" > /dev/null 2>&1 &"
+        enc_cmd="nice ps3enc.py "+args.encode_options+dump_file+" > /dev/null 2>&1 &"
         logger.debug("cmd: %s" % (enc_cmd))
         if not args.pretend:
             os.system(enc_cmd)
@@ -168,7 +172,7 @@ def scan_dvd(args, dvdinfo, maxl):
         for t in tracks:
             length=t['length']
             if length>=minl and length<=maxl:
-                logger.info("Ripping track: %s" % t)
+                logger.info("Selecting candidate track: %s" % t)
                 rip_tracks.append(t['ix'])
 
     if (args.limit):
@@ -229,12 +233,12 @@ if __name__ == "__main__":
 
     base = args.base
     for t in rip_tracks:
-        if direct_encode:
+        if args.direct_encode:
             encode_track("dvd://%d" % int(t))
         else:
             process_track(args, base, t)
         base=base+1
 
     # Eject the DVD
-    if not direct_encode:
+    if not args.pretend or args.direct_encode:
         os.system("eject")
