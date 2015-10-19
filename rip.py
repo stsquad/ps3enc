@@ -7,20 +7,24 @@
 
 import os
 import sys
-import getopt
+import subprocess
+import logging
+
 from operator import itemgetter
+from argparse import ArgumentParser
+
+# Logging
+logger = logging.getLogger("rip")
 
 verbose=0
 use_vlc=False
-log=None
 encode="list"
 single_episode=False
-scan_only=False
 ripdir=os.getenv("HOME")+"/tmp"
 base=1
 maxl=None
 encode=True
-dvd=None
+# dvd=None
 nonav=False
 encode_options=""
 direct_encode=False
@@ -30,18 +34,48 @@ round_factor=6
 # Allow mode + round_fudge_factor * 60 * round_fudge_factor
 round_fudge_factor=2
 
+#
+# Command line options
+#
+parser=ArgumentParser(description='Rip raw video file from a DVD',
+                      epilog="""The script will usually call its sister script ps3enc.py to complete the encoding process""")
+parser.add_argument('-d', '--dir', dest="ripdir", default=os.getenv("HOME")+"/tmp",
+                    help="base directory for output")
+
+general_opts = parser.add_argument_group("General Options")
+general_opts.add_argument("-s", "--scan-only",  default=False, action="store_true", help="Just run the scan and selection phase.")
+general_opts.add_argument("-p", "--pretend",  default=False, action="store_true", help="Pretend, don't rip, just report what you would do.")
+general_opts.add_argument('-v', '--verbose', action='count', default=None, help='Be verbose in output')
+general_opts.add_argument('-q', '--quiet', action='store_false', dest='verbose', help="Supress output")
+general_opts.add_argument('-l', '--log', default=None, help="output to a log file")
+
+source_opts = parser.add_argument_group("Source Options")
+source_opts.add_argument("--dvd", help="Manually specify the DVD device.")
+
+track_opts = parser.add_argument_group("Track Options")
+track_opts.add_argument('-1', '--single', dest="single_episode", default=False, help="rip a single episode")
+track_opts.add_argument('-e', '--episodes', dest="single_episode", action="store_false", help="rip a set of episodes")
+track_opts.add_argument('--limit', default=20, type=int, help="Limit to the first N episodes")
+track_opts.add_argument('--max', default=None, help="Max episode time (in minutes)")
+track_opts.add_argument('--min', default=None, help="Min episode time (in minutes)")
+track_opts.add_argument('-t', '--tracks', dest="track_list", default=[], help="Comma seperated list of tracks to rip")
+
+output_opts = parser.add_argument_group("Output options")
+output_opts.add_argument('--title', default=None, help="Set the base title of the series")
+output_opts.add_argument('--season', default=1, type=int, help="Set the base season of the series")
+output_opts.add_argument('--base', default=1, type=int, help="Set the base season of the series")
+
 def encode_track(path):
     enc_cmd = "ps3enc.py -v %s %s" % (path, encode_options)
     if verbose>0: print "cmd: %s" % (enc_cmd)
     os.system(enc_cmd)
 
-def process_track(ep, title, track):
-    print "Ripping: %s" % (track)
-
-    name=title+"-"+str(ep)
+def process_track(args, base, track):
+    name="%s - s%02de%02d" % (args.title, args.season, args.base)
+    logging.info("Ripping: %s as %s" % (track, name))
 
     dump_dir=ripdir+"/"+name
-        
+
     if not os.path.isdir(dump_dir):
         os.makedirs(dump_dir)
 
@@ -55,25 +89,21 @@ def process_track(ep, title, track):
             nav = "dvd://"+str(track)
         else:
             nav = "dvdnav://"+str(track)
-            
+
         rip_cmd="mplayer "+nav+" -dumpstream -dumpfile "+dump_file
-        if dvd: rip_cmd += " -dvd-device "+dvd
+        if args.dvd: rip_cmd += " -dvd-device "+args.dvd
 
     rip_cmd += " > /dev/null 2>&1"
 
-    if verbose>0: print "cmd: %s" % (rip_cmd)
-    os.system(rip_cmd)
+    logger.debug("cmd: %s" % (rip_cmd))
+    if not args.pretend:
+        os.system(rip_cmd)
 
-    if log:
-        log.write(dump_file+"\n");
-        log.flush()
-        
     if encode:
         # Now we have ripped the file spawn ps3enc.py to deal with it
-        enc_options=""
         enc_cmd="nice ps3enc.py "+encode_options+dump_file+" > /dev/null 2>&1 &"
-        if verbose>0:
-            print "cmd: %s" % (enc_cmd)
+        logger.debug("cmd: %s" % (enc_cmd))
+        if not args.pretend:
             os.system(enc_cmd)
 
 def round_time(time, mins):
@@ -90,10 +120,10 @@ def get_mode_time(times):
     """
     time_dict = dict()
     for n in times:
-	if n in time_dict:
- 		time_dict[n] = time_dict[n]+1
-	else:
- 		time_dict[n] = 1
+        if n in time_dict:
+            time_dict[n] = time_dict[n]+1
+        else:
+            time_dict[n] = 1
 
     # sort dictionary
     time_sorted = sorted(time_dict.iteritems(), key=itemgetter(1))
@@ -101,16 +131,17 @@ def get_mode_time(times):
     return mode
 
 
-def scan_dvd(dvdinfo, maxl):
-    rip_tracks=[]  
+def scan_dvd(args, dvdinfo, maxl):
+    rip_tracks=[]
+    tracks=dvdinfo['track']
 
     # If only one episode rip longest...
-    if single_episode:
+    if args.single_episode:
         # 99% of the time the longest track is what you want
         lt=dvdinfo['longest_track']
         for t in tracks:
             if t['ix'] == lt:
-                if verbose>0: print "longest track %s (%d seconds/%d mins)" % (t['ix'], t['length'], t['length']/60)
+                logger.debug("longest track %s (%d seconds/%d mins)" % (t['ix'], t['length'], t['length']/60))
         rip_tracks.append(lt)
     else:
         # Define our max criteria
@@ -121,159 +152,89 @@ def scan_dvd(dvdinfo, maxl):
             for t in tracks:
                 tt = round_time(t['length'], round_factor)
                 if tt>0 and tt<(60*120):
-                    if verbose>0: print "track %s (%d/%d->%d/%d)" % (t['ix'], t['length'], t['length']/60, tt, tt/60)
+                    logger.debug("track %s (%d/%d->%d/%d)" % (t['ix'], t['length'], t['length']/60, tt, tt/60))
                     rt.append(tt)
             mode = get_mode_time(rt)
             maxl = mode + (round_fudge_factor*60*round_factor)
             minl = mode
-            if verbose>0: print "Mode of episode tracks was: "+str(mode)+" with max time "+str(maxl)
+            logger.debug("Mode of episode tracks was: "+str(mode)+" with max time "+str(maxl))
         else:
-            if verbose>0: print "Have specified longest track to be "+str(maxl)
+            logger.debug("Have specified longest track to be "+str(maxl))
             minl=maxl*float(0.80)
 
 
-        print "Looking for episodes between %f and %f seconds" % (maxl, minl)
+        logger.info("Looking for episodes between %f and %f seconds" % (maxl, minl))
 
         for t in tracks:
             length=t['length']
             if length>=minl and length<=maxl:
-                if verbose>0: print "Ripping track: %s" % t
+                logger.info("Ripping track: %s" % t)
                 rip_tracks.append(t['ix'])
 
+    if (args.limit):
+        rip_tracks = rip_tracks[:args.limit]
+
     return rip_tracks
-    
 
-def usage():
-    print """
-    -h/--help         : this message
-    -verbose          : verbose
+def create_rip_list(args):
+    "Create a list of tracks to rip"
 
-    Base options
-    -d/--dir=<path>   : overide default dest dir ("""+ripdir+""")
-    -l/--log=<path>   : don't encode just log, default based on dvd name
-    -r/--rip-only     : don't encode just rip
-    -dvd=<path>       : path to DVD device
+    if (len(args.track_list)>0):
+        logger.info("Passed in a track list (%s)" % args.track_list)
+        return args.track_list
 
-    Track selection
-    -t/--tracks=<tracks>: just rip given tracks
-    -b/--base=n       : start of numbering for episodes
-    -e/--episodes     : disc contains episodes
-    -1                : just rip longest track
-    -m                : max length of episode (in minutes)
-    -f/--fuzzy        : time fuzziness (%d mins)
+    lsdvd="lsdvd -Oy "
+    if args.dvd: lsdvd += args.dvd
+    p = subprocess.Popen(lsdvd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+    (info, err) = p.communicate()
 
-    Encoding Options (default: %s)
-    -p/--passes=<passes>: override passes used by encode script
-    -c/--cartoon      : pass --cartoon to encode script
-    --film            : pass --film to encode script
+    dvdinfo=eval(info[8:])
+    rip_tracks = scan_dvd(args, dvdinfo, maxl)
 
+    if args.title is None:
+        args.title=dvdinfo['title']
 
-    Special options
-    --nonav           : don't use dvdnav, use dvd
-    --direct          : assume 1 pass film, encode straight from dvd
+    return rip_tracks
 
-    """ % (round_factor, encode_options)
-    return
+def setup_logging(args):
+    # setup logging
+    if args.verbose:
+        if args.verbose == 1: logger.setLevel(logging.INFO)
+        if args.verbose >= 2: logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.WARNING)
+
+    if args.log:
+        handler = logging.FileHandler(args.log)
+    else:
+        handler = logging.StreamHandler()
+
+    lfmt = logging.Formatter('%(asctime)s:%(levelname)s - %(name)s - %(message)s')
+    handler.setFormatter(lfmt)
+    logger.addHandler(handler)
+
+    logger.info("running with level %s" % (logger.getEffectiveLevel()))
 
 # Start of code
 if __name__ == "__main__":
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hb:ed:vlm:t:p:1rcf:",
-                                   ["help", "vlc", "episodes", "dir=","verbose", "log=", "max=", "tracks=", "passes=", "rip-only", "dvd=", "nonav", "cartoon", "fuzzy=", "film", "scan-only", "direct"])
-    except getopt.GetoptError, err:
-        usage()
-        sys.exit(1)
+    args = parser.parse_args()
+    setup_logging(args)
 
     create_log=None
-    rip_tracks=[]  
+    rip_tracks=create_rip_list(args)
 
-    for o,a in opts:
-        if o in ("-h", "--help"):
-            usage()
-            sys.exit(1)
-        if o in ("-b", "--base"):
-            base=int(a)
-        if o in ("-e", "--episodes"):
-            single_episode=False
-        if o in ("-1" ):
-            single_episode=True
-        if o in ("-d", "--dir"):
-            ripdir=os.path.expanduser(a)
-        if o in ("-v", "--verbose"):
-            verbose=1
-        if o == "--vlc":
-            use_vlc=True
-        if o in ("-l", "--log"):
-            if a:
-                log=open(a, "w", 1)
-            else:
-                create_log=1
-            encode=False
-        if o in ("-r", "--rip-only"):
-            encode=False
-        if o in ("-m", "--max"):
-            maxl=float(a)*60
-        if o in ("-t", "--tracks"):
-            rip_tracks=a.split(",")
-        if o in ("-p", "--passes"):
-            encode_options += "-p %s " % (a)
-        if o in ("-c", "--cartoon"):
-            round_fudge_factor = 1 # cartoons generally closer to ideal length
-            encode_options += "--cartoon "
-        if o in ("--film"):
-            single_episode = True
-            encode_options += "--film "
-        if o in ("--dvd"):
-            dvd=a
-        if o in ("--nonav"):
-            nonav=True
-        if o in ("--direct"):
-            direct_encode = True
-            single_episode = True
-            encode_options += "--film -p 1 "
-        if o in ("-f", "--fuzzy"):
-            round_factor = float(a)
-            print "new round factor of %s" % (round_factor)
-        if o in ("--scan-only"):
-            scan_only=True
-
-
-    # if we haven't been told, guess which tracks to rip
-    try:
-        lsdvd="lsdvd -Oy "
-        if dvd: lsdvd += dvd
-        info=os.popen(lsdvd, "r").read()
-        dvdinfo=eval(info[8:])
-        tracks=dvdinfo['track']
-        title=dvdinfo['title']
-    except:
-        print "Error with lsdvd"
-        if len(rip_tracks)>0:
-            title="unknown-dvd"
-    
-    if len(rip_tracks)==0:
-        rip_tracks = scan_dvd(dvdinfo, maxl)
-        
-        
-    print "Ripping %d episodes" % (len(rip_tracks))
-    if scan_only:
+    print "Ripping %d episodes (%s)" % (len(rip_tracks), rip_tracks)
+    if args.scan_only:
         exit(-len(rip_tracks))
 
-    # If we haven't specified a log name then make one up
-    if create_log:
-        ep_start=str(base)
-        ep_end=str(base+len(rip_tracks)-1)
-        log_name=os.getenv("HOME")+"/tmp/"+title+"-e"+ep_start+"-"+ep_end+".log"
-        log=open(log_name, "w", 1)
-
-    
+    base = args.base
     for t in rip_tracks:
         if direct_encode:
             encode_track("dvd://%d" % int(t))
         else:
-            process_track(base, title, t)
+            process_track(args, base, t)
         base=base+1
-            
+
     # Eject the DVD
     if not direct_encode:
         os.system("eject")
