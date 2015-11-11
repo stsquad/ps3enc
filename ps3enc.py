@@ -250,13 +250,17 @@ def process_input(args, vob_file):
                 package_mp4(args, ff, temp_dir, dir, video.fps)
                 os.chdir(start_dir)
             else:
-                logger.info("Copy final file: %s", (ff))
+                logger.info("Copy final file: %s -> %s", (ff, start_dir))
                 shutil.move(ff, start_dir)
                 
             if not args.debug:
+                logger.debug("Removing: %s" % (temp_files))
                 for tf in temp_files:
                     os.unlink(tf)
-                    shutil.rmtree(temp_dir)
+
+                logger.debug("Removing: %s" % (temp_dir))
+                shutil.rmtree(temp_dir)
+
     except Exception as e:
         logger.warning("error: %s" % str(e))
 
