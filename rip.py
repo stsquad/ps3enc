@@ -47,10 +47,14 @@ general_opts.add_argument('-l', '--log', default=None, help="output to a log fil
 
 source_opts = parser.add_argument_group("Source Options")
 source_opts.add_argument("--dvd", help="Manually specify the DVD device.")
+source_opts.add_argument("--ripper", default="mplayer",
+                         choices=["vobcopy", "mplayer", "vlc"],
+                         help="Choose rip method")
 source_opts.add_argument("--nonav", default=False, action="store_true", help="Don't use dvdnav selector.")
+source_opts.add_argument("--vlc", default=False, action="store_true", help="Use VLC for the rip.")
 
 track_opts = parser.add_argument_group("Track Options")
-track_opts.add_argument('-1', '--single', dest="single_episode", default=False, help="rip a single episode")
+track_opts.add_argument('-1', '--single', '--film', dest="single_episode", default=False, action="store_true", help="rip a single episode")
 track_opts.add_argument('-e', '--episodes', dest="single_episode", action="store_false", help="rip a set of episodes")
 track_opts.add_argument('--limit', default=20, type=int, help="Limit to the first N episodes")
 track_opts.add_argument('--max', default=None, help="Max episode time (in minutes)")
@@ -70,6 +74,34 @@ def encode_track(path):
     if verbose>0: print "cmd: %s" % (enc_cmd)
     os.system(enc_cmd)
 
+def rip_track(args, track, dest_file):
+    "Rip a given track using whatever we have."
+
+    if args.ripper == "vobcopy":
+        dump_file = dest_file
+        rip_cmd="vobcopy -i /dev/dvd -n %d -t %s" % (track, dest_file)
+    elif args.ripper == "vlc":
+        dump_file=dest_file+".vob"
+        rip_cmd="cvlc dvd://#"+str(track)+' --sout "#standard{access=file,mux=ps,dst='+dump_file+'}"'
+    elif args.ripper == "mplayer":
+        if args.nonav:
+            nav = "dvd://"+str(track)
+        else:
+            nav = "dvdnav://"+str(track)
+
+        dump_file=dest_file+".vob"
+        rip_cmd="mplayer "+nav+" -dumpstream -dumpfile "+dump_file
+        if args.dvd: rip_cmd += " -dvd-device "+args.dvd
+
+    rip_cmd += " > /dev/null 2>&1"
+
+    logger.debug("cmd: %s" % (rip_cmd))
+    if not args.pretend:
+        os.system(rip_cmd)
+
+    return dump_file
+
+        
 def process_track(args, base, track):
     if (args.single_episode):
         name = args.title
@@ -85,23 +117,7 @@ def process_track(args, base, track):
 
     os.chdir(dump_dir)
 
-    dump_file=dump_dir+"/"+name+".vob"
-    if use_vlc:
-        rip_cmd="vlc -I rc dvd:/dev/hda@"+str(track)+' --sout "#standard{access=file,mux=ps,dst='+dump_file+'}"'
-    else:
-        if args.nonav:
-            nav = "dvd://"+str(track)
-        else:
-            nav = "dvdnav://"+str(track)
-
-        rip_cmd="mplayer "+nav+" -dumpstream -dumpfile "+dump_file
-        if args.dvd: rip_cmd += " -dvd-device "+args.dvd
-
-    rip_cmd += " > /dev/null 2>&1"
-
-    logger.debug("cmd: %s" % (rip_cmd))
-    if not args.pretend:
-        os.system(rip_cmd)
+    dump_file = rip_track(args, track, name)
 
     if args.encode:
         # Now we have ripped the file spawn ps3enc.py to deal with it
@@ -183,21 +199,25 @@ def scan_dvd(args, dvdinfo, maxl):
 def create_rip_list(args):
     "Create a list of tracks to rip"
 
-    if (len(args.track_list)>0):
-        logger.info("Passed in a track list (%s)" % args.track_list)
-        return args.track_list
-
     lsdvd="lsdvd -Oy "
     if args.dvd: lsdvd += args.dvd
     p = subprocess.Popen(lsdvd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (info, err) = p.communicate()
-
     dvdinfo=eval(info[8:])
-    rip_tracks = scan_dvd(args, dvdinfo, maxl)
 
     if args.title is None:
         args.title=dvdinfo['title']
 
+    if (len(args.track_list)>0):
+        if len(args.track_list)==1:
+            logger.info("Ripping a single specified track (%s)" % args.track_list)
+            args.single_episode=True
+        else:
+            logger.info("Passed in a track list (%s)" % args.track_list)
+        return args.track_list
+
+    rip_tracks = scan_dvd(args, dvdinfo, maxl)
+    
     return rip_tracks
 
 def setup_logging(args):
