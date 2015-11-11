@@ -103,7 +103,8 @@ class mplayer(video_source):
     def analyse_video(self):
         super(mplayer,self).analyse_video()
         self.identify_video()
-        self.sample_video()
+        if not self.args.no_crop:
+            self.sample_video()
 
     def identify_video(self):
         ident_cmd = mplayer_bin+" -identify -frames 0 '"+self.path+"'"

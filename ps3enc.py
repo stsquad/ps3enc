@@ -216,7 +216,7 @@ def process_input(args, vob_file):
     
     temp_files = [temp_dir+"/divx2pass.log"]
 
-    if args.no_crop or args.encoder == "mencoder":
+    if args.no_crop:
         crop = ""
     else:
         crop = video.crop_spec
@@ -277,6 +277,9 @@ if __name__ == "__main__":
     if args.cartoon:
         args.passes=1
         args.video_bitrate=1500
+
+    if args.encoder == "ffmpeg":
+        args.no_crop = True
 
     logger.debug("args: %s" % (args))
             
