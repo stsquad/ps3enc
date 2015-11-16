@@ -121,7 +121,7 @@ def process_track(args, base, track):
 
     if args.encode:
         # Now we have ripped the file spawn ps3enc.py to deal with it
-        enc_cmd="nice ps3enc.py "+args.encode_options+dump_file+" > /dev/null 2>&1 &"
+        enc_cmd="nice ps3enc.py %s %s > /dev/null 2>&1 &" % (args.encode_options,dump_file)
         logger.debug("cmd: %s" % (enc_cmd))
         if not args.pretend:
             os.system(enc_cmd)
