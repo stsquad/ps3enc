@@ -71,8 +71,7 @@ encode_options.add_argument('-b', '--bitrate', metavar="n", type=int, dest="vide
 encode_options.add_argument('--audio_bitrate', metavar="n", type=int, dest="audio_bitrate", default=192, help="audio encoding bitrate")
 encode_options.add_argument('-p', '--passes', metavar="n", type=int, default=1, help="Number of encoding passes (default 1)")
 encode_options.add_argument('-c', '--cartoon', action="store_true", help="Assume we are encoding a cartoon (lower bitrate + filters)")
-encode_options.add_argument('-f', '--film', dest="video_bitrate", action="store_const", const=3000,
-                            help="Assume we are encoding a film (higher bitrate)")
+encode_options.add_argument('-f', '--film', action="store_true",  help="Assume we are encoding a film (higher bitrate)")
 encode_options.add_argument('--hdfilm', dest="video_bitrate", action="store_const", const=5000,
                             help="Assume we are encoding a HD film (even higher bitrate)")
 encode_options.add_argument('-t', '--test', action="store_true", help="Do a test segment")
@@ -246,11 +245,11 @@ def process_input(args, vob_file):
 
         if os.path.exists(ff):
             if ff.endswith(".avi"):
-                logger.info("Repackage final file is: %s", (ff))
+                logger.info("Repackage final file is: %s" % (ff))
                 package_mp4(args, ff, temp_dir, dir, video.fps)
                 os.chdir(start_dir)
             else:
-                logger.info("Copy final file: %s -> %s", (ff, start_dir))
+                logger.info("Copy final file: %s -> %s" % (ff, start_dir))
                 shutil.move(ff, start_dir)
                 
             if not args.debug:
