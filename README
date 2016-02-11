@@ -83,3 +83,48 @@ It has a couple of presets:
   Higher video bitrate also increases the audio bitrate as films often
   have quite a dense soundtrack which benefits from it.
 
+mkv2mp4.py
+----------
+
+This was originally written by L.J.J Lee, also under GPLv3
+(https://github.com/vgasu/mkv2mp4). I've made a few tweaks to it since.
+
+mkv2mp4 is a commandline utility, written in Python, which allows conversion
+of video files in the Matroska container (*.mkv file extension) containing
+H.264 video to be converted into a format which the PS3/PS4 and Xbox 360 can play.
+  
+It differs from other similar tools in that no video transcoding is
+performed; the video is passed through untouched and the just the audio is
+transcoded if necessary.  This means that the conversion is much faster
+(the whole process being quicker than realtime on reasonably modern
+machines), and more importantly that there is no degradation in video quality
+(which makes it very suitable for HD video).
+  
+Due to the fact no video transcoding is performed, this tool is somewhat
+restrictive in the input formats it supports.  Supported formats are the
+the following - the intention being that this should work on (at least) files
+conforming to the x264 HD scene rules - FLAC multichannel audio is the only
+exception currently.
+  - Container: Matroska.
+  - Video codec: H.264
+  - Audio codec: the app supports all audio codecs, however:
+    - ffmpeg's multichannel support currently isn't great, and therefore only
+      a subset of codecs with more than two channels will work.  5.1 AC3 and
+      5.1 DTS are known to work, 5.1 FLAC is known not to, others are untested.
+    - All stereo codecs which ffmpeg can decode should work.
+
+Technical details:
+
+  This application makes the following alterations to the file:
+  - Extract tracks from mkv input (uses mkvinfo & mkvextract)
+  - Edit H.264 video stream to have level 4.1 or less (this is just a change
+    to the file header - no transcoding).  This is because the Xbox 360 doesn't
+    play files with a higher level.
+  - Transcode audio to stereo AAC (unfortunately the Xbox 360 doesn't support
+    any 5.1 audio codecs in mp4) (using ffmpeg for decoding and encoding (with
+    libfaac), or ffmpeg for decoding and neroAacEnc for encoding.
+  - Drop any tracks other than the first video and audio tracks (the Xbox 360
+    doesn't support multiple video or audio tracks, and doesn't support
+    subtitles in mp4).
+  - Remux into an mp4 container.  Files are split such that they are smaller
+    than 4GB (again... a restriction for the Xbox 360).
