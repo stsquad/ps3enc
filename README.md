@@ -1,43 +1,47 @@
-Alex's PS3 Ripping Scripts
-==========================
+Alex's Random Media Handling Scripts
+====================================
 
-The following scripts are used for ripping and encoding DVD's into a
-format suitable for playing on a PS3 (h.264 encoded MP4's). All the
-heavy encoding work is done the excellent mencoder.
+The following scripts are used for ripping and encoding media files
+into a format suitable for playing on a PS3/PS4 (h.264 encoded MP4's).
+
+All the heavy encoding work is done with ffmpeg or mencoder.
 
 Why?
 ====
 
 Every other solution I've tried sucks?
 
-There are loads of ripping front-ends out there however they don't happen
-to suit me. These scripts concentrate on being command line based, tuned
-for the PS3 (may main media hub) and useful for ripping box sets by using
-heuristics to identify the episodes on a disk.
+There are loads of ripping front-ends out there however they don't
+happen to suit me. These scripts concentrate on being command line
+based, tuned for the Playstation (may main media hub) and useful for
+ripping box sets by using heuristics to identify the episodes on a
+disk.
 
-It's also an exercise in coding more python for me. Having said that it's
-all open source so I'll happily accept patches and your perfectly free to
-fork it for your own needs.
+It's also an exercise in coding more python for me. Having said that
+it is all open source so I'll happily accept patches and you are
+perfectly free to fork it for your own needs.
 
 Approach and prerequisites
 ==========================
 
-The script is optimised for my setup. As the files are quite big
-and a lot of the stuff in multi-pass is thrown away most of the heavy
-file I/O is in /tmp which on my 16GB machine is huge tmpfs partition.
-This means the encoding is rarely I/O bound which makes running multiple
-encodes less of a load on my machine (which is a 2 core + 2 thread i5 system).
+The script is optimised for my setup. As the files are quite big and a
+lot of the stuff in multi-pass is thrown away most of the heavy file
+I/O is in /tmp which on my 16GB machine is huge tmpfs partition. This
+means the encoding is rarely I/O bound which makes running multiple
+encodes less of a load on my machine (which is a 2 core + 2 thread i5
+system).
 
 These scripts require the following:
 
-* mencoder
+* ffmpeg
+* mencoder (fallback, used for subtitle rips)
 * lsdvd
 * MP4Box
 
 Usage
 =====
 
-There are currently two scripts
+There are currently three scripts
 
 rip.py
 ------
