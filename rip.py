@@ -215,9 +215,9 @@ def scan_dvd(args, dvdinfo, maxl):
 
 def create_rip_list(args):
     "Create a list of tracks to rip"
-
+    FNULL = open(os.devnull, 'w')
     lsdvd="lsdvd -Oy %s" % (args.dvd)
-    p = subprocess.Popen(lsdvd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+    p = subprocess.Popen(lsdvd, stdout=subprocess.PIPE, stderr=FNULL, shell=True)
     (info, err) = p.communicate()
     dvdinfo=eval(info[8:])
 
