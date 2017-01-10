@@ -12,6 +12,7 @@ import logging
 
 from operator import itemgetter
 from argparse import ArgumentParser
+from time import sleep
 
 # Logging
 logger = logging.getLogger("rip")
@@ -46,7 +47,7 @@ general_opts.add_argument('-q', '--quiet', action='store_false', dest='verbose',
 general_opts.add_argument('-l', '--log', default=None, help="output to a log file")
 
 source_opts = parser.add_argument_group("Source Options")
-source_opts.add_argument("--dvd", help="Manually specify the DVD device.")
+source_opts.add_argument("--dvd", default="/dev/dvd", help="Specify the DVD device.")
 source_opts.add_argument("--ripper", default="mplayer",
                          choices=["vobcopy", "mplayer", "vlc"],
                          help="Choose rip method")
@@ -91,7 +92,7 @@ def rip_track(args, track, dest_file):
 
         dump_file=dest_file+".vob"
         rip_cmd="mplayer "+nav+" -dumpstream -dumpfile "+dump_file
-        if args.dvd: rip_cmd += " -dvd-device "+args.dvd
+        rip_cmd += " -dvd-device "+args.dvd
 
     rip_cmd += " > /dev/null 2>&1"
 
@@ -150,6 +151,22 @@ def get_mode_time(times):
     mode = time_sorted[-1][0]
     return mode
 
+def poll_dvd(args):
+    "Poll the DVD device until it is ready, or fail."
+    FNULL = open(os.devnull, 'w')
+    poll_count = 0
+    poll_ready = 1
+    while poll_ready != 0 and poll_count < 10:
+        poll_ready = subprocess.call(["/sbin/blockdev", args.dvd], stderr=FNULL)
+        poll_count += 1
+        logger.info("No DVD found (%d), sleeping", poll_count)
+        sleep(5)
+
+    if poll_ready != 0:
+        logger.error("No DVD found (%d), after polling %d times", poll_ready, poll_count)
+        exit(-1)
+    else:
+        logger.info("DVD found")
 
 def scan_dvd(args, dvdinfo, maxl):
     rip_tracks=[]
@@ -199,8 +216,7 @@ def scan_dvd(args, dvdinfo, maxl):
 def create_rip_list(args):
     "Create a list of tracks to rip"
 
-    lsdvd="lsdvd -Oy "
-    if args.dvd: lsdvd += args.dvd
+    lsdvd="lsdvd -Oy %s" % (args.dvd)
     p = subprocess.Popen(lsdvd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
     (info, err) = p.communicate()
     dvdinfo=eval(info[8:])
@@ -245,6 +261,8 @@ if __name__ == "__main__":
     setup_logging(args)
 
     create_log=None
+
+    poll_dvd(args)
     rip_tracks=create_rip_list(args)
 
     print "Ripping %d episodes (%s)" % (len(rip_tracks), rip_tracks)
