@@ -35,8 +35,22 @@ class ffmpeg(encoder):
         return a ffmpeg command string
         """
         logger.info("build_cmd: %s, pass=%d" %(dst_file, epass))
-        cmd = "%s -y -i '%s' -map 0:v " % (ffmpeg_bin, self.src_file)
+
+        # If we are encoding subs we want a long probe to ensure we find the stream
+        if self.args.slang >= 0:
+            cmd = "%s -probesize 2G -analyzeduration 2G" % (ffmpeg_bin)
+        else:
+            cmd = "%s" % (ffmpeg_bin)
+
+        # The input file
+        cmd = "%s -y -i '%s'" % (cmd, self.src_file)
         logger.info("build_cmd: %s" % (cmd))
+
+        # This assumes we encoding picture based subs (i.e. DVD subs)
+        if self.args.slang >= 0:
+            cmd = "%s -filter_complex \"[0:v][0:s:%d]overlay[hardsub]\" -map \"[hardsub]\"" % (cmd, self.args.slang-1)
+        else:
+            cmd = "%s -map 0:v " % (cmd)
 
         # For ffmpeg pass 2 is the final pass, pass 3 if we keep collecting data
         if self.args.passes > 1:
@@ -62,9 +76,6 @@ class ffmpeg(encoder):
         # position
         if self.args.test:
             cmd = cmd + " -ss 20:00 -t 120 "
-
-        if self.args.slang >= 0:
-            cmd = "%s -vf subtitles=%s:si=%d" % (cmd, self.src_file, self.args.slang)
 
         logger.info("build_cmd: %s" % (cmd))
 
