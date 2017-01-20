@@ -41,7 +41,7 @@ class video_source(object):
         self.fps=None
         self.video_codec=None
         self.audio_codec=None
-        self.audio_tracks=None
+        self.audio_tracks=[]
         self.size = None
 
         if real_file:

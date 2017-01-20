@@ -77,14 +77,14 @@ class dvd(mplayer):
     def _alarm_handler(self, signum, frame):
         raise Alarm
     
-    def __init__(self, filepath):
+    def __init__(self, filepath, args):
         """
         >>> args = video_options().parse_args(["-q", "dvd://2"])
         >>> x = dvd(args.files[0])
         >>> x.track
         2
         """
-        super(dvd, self).__init__(filepath, real_file=False)
+        super(dvd, self).__init__(filepath, args, real_file=False)
         if filepath.startswith("dvd://"):
             self.track = int(filepath.strip("dvd://"))
         
@@ -124,7 +124,7 @@ if __name__ == "__main__":
         
     for a in args.files:
         if a.startswith("dvd://") or a.endswith(".vob"):
-            v = video_source_dvd(a, args, class_logger)
+            v = dvd(a, args)
         else:
             print "video_source_dvd: for DVD files"
             exit -1
