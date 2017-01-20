@@ -176,10 +176,32 @@ def scan_dvd(args, dvdinfo, maxl):
     if args.single_episode:
         # 99% of the time the longest track is what you want
         lt=dvdinfo['longest_track']
+
+        # To double check scan all the tracks ourself
+        scanned_lt=0
         for t in tracks:
+            if t['length'] > scanned_lt:
+                scanned_lt = t['length']
+
+        all_long_tracks=[]
+        for t in tracks:
+            if t['length'] == scanned_lt:
+                all_long_tracks.append(t['ix'])
+
             if t['ix'] == lt:
+                if t['length'] < scanned_lt:
+                    logger.warning("longest track not really longest")
+
                 logger.debug("longest track %s (%d seconds/%d mins)" % (t['ix'], t['length'], t['length']/60))
-        rip_tracks.append(lt)
+
+        if len(all_long_tracks) > 1:
+            logger.error("Found additional tracks %s as long as %d", all_long_tracks, lt)
+            exit(-1)
+        elif len(all_long_tracks) == 1 and all_long_tracks[0] != lt:
+            logger.error("Mismatch between lsdvd 'longest_track' %d and %d", lt, all_long_tracks[0])
+            exit(-1)
+        else:
+            rip_tracks.append(lt)
     else:
         # Define our max criteria
         if maxl==None:
