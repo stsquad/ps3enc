@@ -39,6 +39,8 @@ class ffmpeg(encoder):
         # If we are encoding subs we want a long probe to ensure we find the stream
         if self.args.slang >= 0:
             cmd = "%s -probesize 2G -analyzeduration 2G" % (ffmpeg_bin)
+            if self.args.forced_sub:
+                cmd = "%s -forced_subs_only 1" % (cmd)
         else:
             cmd = "%s" % (ffmpeg_bin)
 
