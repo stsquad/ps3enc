@@ -64,6 +64,7 @@ track_opts.add_argument('-t', '--tracks', dest="track_list", type=int, default=[
 
 output_opts = parser.add_argument_group("Output options")
 output_opts.add_argument('-r', '--rip-only', dest="encode", default=True, action="store_false")
+output_opts.add_argument('--image', action="store_true", help="Rip the whole image (useful for hardsub runs, only with -r)")
 output_opts.add_argument('--title', default=None, help="Set the base title of the series")
 output_opts.add_argument('--season', default=1, type=int, help="Set the base season of the series")
 output_opts.add_argument('--base', default=1, type=int, help="Set the base season of the series")
@@ -74,6 +75,23 @@ def encode_track(path):
     enc_cmd = "ps3enc.py -v %s %s" % (path, args.encode_options)
     if verbose>0: print "cmd: %s" % (enc_cmd)
     os.system(enc_cmd)
+
+def rip_image(args):
+    "Rip the whole disk image"
+    name = args.title
+    dump_dir=ripdir+"/"+args.title
+    logging.info("Ripping image to %s" % (dump_dir))
+
+    if not os.path.isdir(dump_dir):
+        os.makedirs(dump_dir)
+
+    os.chdir(dump_dir)
+
+    rip_cmd="dd if=/dev/dvd of=disk.img"
+    logger.debug("cmd: %s" % (rip_cmd))
+    if not args.pretend:
+        os.system(rip_cmd)
+
 
 def rip_track(args, track, dest_file):
     "Rip a given track using whatever we have."
@@ -291,13 +309,17 @@ if __name__ == "__main__":
     if args.scan_only:
         exit(-len(rip_tracks))
 
-    base = args.base
-    for t in rip_tracks:
-        if args.direct_encode:
-            encode_track("dvd://%d" % int(t))
-        else:
-            process_track(args, base, t)
-        base=base+1
+    if args.image and not args.encode:
+        rip_image(args)
+    else:
+        base = args.base
+        for t in rip_tracks:
+            if args.direct_encode:
+                encode_track("dvd://%d" % int(t))
+            else:
+                process_track(args, base, t)
+
+            base=base+1
 
     # Eject the DVD
     if not args.pretend or args.direct_encode:
