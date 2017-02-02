@@ -20,7 +20,6 @@ logger = logging.getLogger("rip")
 verbose=0
 use_vlc=False
 single_episode=False
-ripdir=os.getenv("HOME")+"/tmp"
 base=1
 maxl=None
 # dvd=None
@@ -76,18 +75,21 @@ def encode_track(path):
     if verbose>0: print "cmd: %s" % (enc_cmd)
     os.system(enc_cmd)
 
+def move_to_ripdir(args):
+    logging.info("Ripping image to %s" % (args.ripdir))
+
+    if not os.path.isdir(args.ripdir):
+        os.makedirs(args.ripdir)
+
+    os.chdir(args.ripdir)
+
 def rip_image(args):
     "Rip the whole disk image"
     name = args.title
-    dump_dir=ripdir+"/"+args.title
-    logging.info("Ripping image to %s" % (dump_dir))
 
-    if not os.path.isdir(dump_dir):
-        os.makedirs(dump_dir)
+    move_to_ripdir(args)
 
-    os.chdir(dump_dir)
-
-    rip_cmd="dd if=/dev/dvd of=disk.img"
+    rip_cmd="dd if=%s of=%s.img" % (args.dvd, args.title)
     logger.debug("cmd: %s" % (rip_cmd))
     if not args.pretend:
         os.system(rip_cmd)
@@ -127,14 +129,7 @@ def process_track(args, base, track):
     else:
         name = "s%02de%02d" % (args.season, base)
 
-    logging.info("Ripping: %s as %s" % (track, name))
-
-    dump_dir=ripdir+"/"+args.title
-
-    if not os.path.isdir(dump_dir):
-        os.makedirs(dump_dir)
-
-    os.chdir(dump_dir)
+    move_to_ripdir(args)
 
     dump_file = rip_track(args, track, name)
 
