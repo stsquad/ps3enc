@@ -209,10 +209,12 @@ def scan_dvd(args, dvdinfo, maxl):
 
         if len(all_long_tracks) > 1:
             logger.error("Found additional tracks %s as long as %d", all_long_tracks, lt)
-            exit(-1)
+            if not args.image:
+                exit(-1)
         elif len(all_long_tracks) == 1 and all_long_tracks[0] != lt:
             logger.error("Mismatch between lsdvd 'longest_track' %d and %d", lt, all_long_tracks[0])
-            exit(-1)
+            if not args.image:
+                exit(-1)
         else:
             rip_tracks.append(lt)
     else:
@@ -267,7 +269,14 @@ def create_rip_list(args):
             logger.info("Passed in a track list (%s)" % args.track_list)
         return args.track_list
 
-    rip_tracks = scan_dvd(args, dvdinfo, maxl)
+    all_tracks=dvdinfo['track']
+    if len(all_tracks) > 50:
+        logger.warning("Too many tracks (%d), you probably need to manually pick one, falling back to disk rip", len(all_tracks))
+        args.image = True
+        args.encode = False
+        return []
+    else:
+        rip_tracks = scan_dvd(args, dvdinfo, maxl)
     
     return rip_tracks
 
