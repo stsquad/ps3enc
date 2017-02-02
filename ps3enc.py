@@ -19,6 +19,7 @@ import shlex
 import shutil
 import tempfile
 import logging
+import re
 
 from datetime import date
 from argparse import ArgumentParser
@@ -192,6 +193,32 @@ def package_mp4(arg, src_file, temp_dir, dest_dir, fps=None):
 
     return
 
+def infer_args_from_file(args, filename):
+    """Look at the filename to see if we need to infer audio or subtitle settings
+
+    >>> args = parser.parse_args()
+    >>> infer_args_from_file(args, "somefile.vob-a2-sno")
+    >>> args.alang
+    2
+    >>> infer_args_from_file(args, "somefile.vob-a3-sno")
+    >>> args.alang
+    3
+    >>> args.slang
+    -1
+    >>> infer_args_from_file(args, "somefile.vob-a10-s2")
+    >>> args.alang
+    10
+    >>> args.slang
+    2
+    """
+    infer_re = re.compile("-a(\d+|no)-s(\d+|no)$")
+    match = infer_re.search(filename)
+    if match:
+        if match.group(1) and match.group(1).isdigit():
+            args.alang = int(match.group(1))
+        if match.group(2) and match.group(2).isdigit():
+            args.slang = int(match.group(2))
+
 
 # Process a single VOB file into final MP4
 def process_input(args, vob_file):
@@ -207,6 +234,7 @@ def process_input(args, vob_file):
     else:
         (dir, file) = os.path.split(vob_file)
         (base, extension) = os.path.splitext(file)
+        infer_args_from_file(args, vob_file)
 
     start_dir = os.getcwd()
     
