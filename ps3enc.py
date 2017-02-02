@@ -262,7 +262,7 @@ def process_input(args, vob_file):
                 shutil.rmtree(temp_dir)
 
     except Exception as e:
-        logger.warning("error: %s" % str(e))
+        logger.warning("error: %s", str(e))
 
 
 # Start of code
