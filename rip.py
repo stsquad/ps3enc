@@ -300,13 +300,15 @@ if __name__ == "__main__":
     poll_dvd(args)
     rip_tracks=create_rip_list(args)
 
-    print "Ripping %d episodes (%s)" % (len(rip_tracks), rip_tracks)
     if args.scan_only:
         exit(-len(rip_tracks))
 
+
     if args.image and not args.encode:
+        logger.info("Ripping whole disk image")
         rip_image(args)
     else:
+        logging.info("Ripping %d episodes (%s)", len(rip_tracks), rip_tracks)
         base = args.base
         for t in rip_tracks:
             if args.direct_encode:
