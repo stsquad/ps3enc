@@ -5,4 +5,10 @@ python:
   - "3.2"
   - "3.3"
 # command to run tests
-script: nosetests --with-doctest
+install: "pip install nose pylint"
+script:
+  - pylint --errors-only ps3enc.py
+  - pylint --errors-only rip.py
+  - pylint --errors-only mkv2mp4.py
+  - nosetests ps3enc.py
+  - nosetests mkv2mp4.py
