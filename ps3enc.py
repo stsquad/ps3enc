@@ -292,6 +292,9 @@ def process_input(args, vob_file):
     except Exception as e:
         logger.warning("error: %s", str(e))
 
+   # Return to whence we came
+    os.chdir(start_dir)
+
 
 # Start of code
 if __name__ == "__main__":
