@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # RIP DVD
 #
@@ -17,13 +17,8 @@ from time import sleep
 # Logging
 logger = logging.getLogger("rip")
 
-verbose=0
-use_vlc=False
-single_episode=False
-base=1
-maxl=None
 # dvd=None
-nonav=False
+nonav = False
 
 # Round to nearest n minutes
 round_factor=6
@@ -306,8 +301,6 @@ def setup_logging(args):
 if __name__ == "__main__":
     args = get_options()
     setup_logging(args)
-
-    create_log=None
 
     poll_dvd(args)
     rip_tracks=create_rip_list(args)
