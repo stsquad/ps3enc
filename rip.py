@@ -69,12 +69,15 @@ def get_options():
 
     return parser.parse_args()
 
+def encode_track(args, path):
     enc_cmd = "ps3enc.py -v %s %s" % (path, args.encode_options)
-    if verbose>0: print "cmd: %s" % (enc_cmd)
+    logger.info("encode cmd: %s", (enc_cmd))
     os.system(enc_cmd)
 
 def move_to_ripdir(args):
-    logging.info("Ripping image to %s" % (args.ripdir))
+    "Move to directory to run rip"
+
+    logging.info("Ripping image to %s", args.ripdir)
 
     if not os.path.isdir(args.ripdir):
         os.makedirs(args.ripdir)
