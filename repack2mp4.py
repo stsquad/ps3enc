@@ -81,7 +81,7 @@ def repack_video(video, verbose=False):
         outfile = extracted_audio.replace("raw", "ac3")
         os.rename(extracted_audio, outfile)
         final_audio = extracted_audio.replace("raw", "aac")
-        transcode="ffmpeg -i '%s' -acodec libfaac -ac 2 -ab 160000 '%s'" % (outfile, final_audio)
+        transcode="ffmpeg -i '%s' -acodec aac -ac 2 -ab 160000 '%s'" % (outfile, final_audio)
         if verbose: print "Running: "+transcode
         p = subprocess.Popen(transcode, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
         (out, err) = p.communicate()

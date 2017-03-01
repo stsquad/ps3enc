@@ -126,7 +126,7 @@ Technical details:
     play files with a higher level.
   - Transcode audio to stereo AAC (unfortunately the Xbox 360 doesn't support
     any 5.1 audio codecs in mp4) (using ffmpeg for decoding and encoding (with
-    libfaac), or ffmpeg for decoding and neroAacEnc for encoding.
+    native aac support), or ffmpeg for decoding and neroAacEnc for encoding.
   - Drop any tracks other than the first video and audio tracks (the Xbox 360
     doesn't support multiple video or audio tracks, and doesn't support
     subtitles in mp4).

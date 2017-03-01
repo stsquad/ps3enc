@@ -87,7 +87,7 @@ class ffmpeg(encoder):
                 cmd = "%s -map 0:a:%d" % (cmd, self.args.alang - 1)
             else:
                 cmd = "%s -map 0:a" % (cmd)
-            cmd = "%s -acodec libfaac -ab 128k -ac 2 -ar 48000" % (cmd) #, self.args.audio_bitrate)
+            cmd = "%s -acodec aac -ab 128k -ac 2 -ar 48000" % (cmd) #, self.args.audio_bitrate)
         else:
             cmd = cmd + " -an "
         logger.info("build_cmd: %s" % (cmd))

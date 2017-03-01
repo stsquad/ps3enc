@@ -252,7 +252,7 @@ class AudioTrack:
                 log("Calling ffmpeg to transcode audio")
                 subprocess.call(["ffmpeg", \
                                  "-i", self.filename, \
-                                 "-acodec", "libfaac", \
+                                 "-acodec", "aac", \
                                  "-ac", "2", \
                                  "-ab", "160000", \
                                  self.output_filename])
@@ -438,7 +438,7 @@ def usage():
 "  -a <encoder>, --audio-encoder=<encoder>\n" + \
 "                     Specify the audio encoder to use.  Supported encoders are:\n" + \
 "                       'neroAacEnc': The NERO AAC encoder [preferred default]\n" + \
-"                       'ffmpeg': ffmpeg (needs libfaac support)\n" + \
+"                       'ffmpeg': ffmpeg (needs aac support)\n" + \
 "  -d <device>, --target-device=<device>\n" + \
 "                     Specify the target device.  Supported devices are:\n" + \
 "                       'Xbox360': Microsoft Xbox 360 [default]\n" + \
