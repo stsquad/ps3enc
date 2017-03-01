@@ -33,44 +33,47 @@ round_fudge_factor=2
 #
 # Command line options
 #
-parser=ArgumentParser(description='Rip raw video file from a DVD',
-                      epilog="""The script will usually call its sister script ps3enc.py to complete the encoding process""")
-parser.add_argument('-d', '--dir', dest="ripdir", default=os.getenv("HOME")+"/tmp",
-                    help="base directory for output")
+def get_options():
+    "Return parsed options from command line"
+    parser = ArgumentParser(description='Rip raw video file from a DVD',
+                            epilog="""The script will usually call its sister script ps3enc.py to complete the encoding process""")
+    parser.add_argument('-d', '--dir', dest="ripdir", default=os.getenv("HOME")+"/tmp",
+                        help="base directory for output")
 
-general_opts = parser.add_argument_group("General Options")
-general_opts.add_argument("-s", "--scan-only",  default=False, action="store_true", help="Just run the scan and selection phase.")
-general_opts.add_argument("-p", "--pretend",  default=False, action="store_true", help="Pretend, don't rip, just report what you would do.")
-general_opts.add_argument('-v', '--verbose', action='count', default=None, help='Be verbose in output')
-general_opts.add_argument('-q', '--quiet', action='store_false', dest='verbose', help="Supress output")
-general_opts.add_argument('-l', '--log', default=None, help="output to a log file")
+    general_opts = parser.add_argument_group("General Options")
+    general_opts.add_argument("-s", "--scan-only",  default=False, action="store_true", help="Just run the scan and selection phase.")
+    general_opts.add_argument("-p", "--pretend",  default=False, action="store_true", help="Pretend, don't rip, just report what you would do.")
+    general_opts.add_argument('-v', '--verbose', action='count', default=None, help='Be verbose in output')
+    general_opts.add_argument('-q', '--quiet', action='store_false', dest='verbose', help="Supress output")
+    general_opts.add_argument('-l', '--log', default=None, help="output to a log file")
 
-source_opts = parser.add_argument_group("Source Options")
-source_opts.add_argument("--dvd", default="/dev/dvd", help="Specify the DVD device.")
-source_opts.add_argument("--ripper", default="mplayer",
-                         choices=["vobcopy", "mplayer", "vlc"],
-                         help="Choose rip method")
-source_opts.add_argument("--nonav", default=False, action="store_true", help="Don't use dvdnav selector.")
-source_opts.add_argument("--vlc", default=False, action="store_true", help="Use VLC for the rip.")
+    source_opts = parser.add_argument_group("Source Options")
+    source_opts.add_argument("--dvd", default="/dev/dvd", help="Specify the DVD device.")
+    source_opts.add_argument("--ripper", default="mplayer",
+                             choices=["vobcopy", "mplayer", "vlc"],
+                             help="Choose rip method")
+    source_opts.add_argument("--nonav", default=False, action="store_true", help="Don't use dvdnav selector.")
+    source_opts.add_argument("--vlc", default=False, action="store_true", help="Use VLC for the rip.")
 
-track_opts = parser.add_argument_group("Track Options")
-track_opts.add_argument('-1', '--single', '--film', dest="single_episode", default=False, action="store_true", help="rip a single episode")
-track_opts.add_argument('-e', '--episodes', dest="single_episode", action="store_false", help="rip a set of episodes")
-track_opts.add_argument('--limit', default=20, type=int, help="Limit to the first N episodes")
-track_opts.add_argument('--max', default=None, help="Max episode time (in minutes)")
-track_opts.add_argument('--min', default=None, help="Min episode time (in minutes)")
-track_opts.add_argument('-t', '--tracks', dest="track_list", type=int, default=[], nargs="+", help="List of tracks to rip")
+    track_opts = parser.add_argument_group("Track Options")
+    track_opts.add_argument('-1', '--single', '--film', dest="single_episode", default=False, action="store_true", help="rip a single episode")
+    track_opts.add_argument('-e', '--episodes', dest="single_episode", action="store_false", help="rip a set of episodes")
+    track_opts.add_argument('--limit', default=20, type=int, help="Limit to the first N episodes")
+    track_opts.add_argument('--max', default=None, help="Max episode time (in minutes)")
+    track_opts.add_argument('--min', default=None, help="Min episode time (in minutes)")
+    track_opts.add_argument('-t', '--tracks', dest="track_list", type=int, default=[], nargs="+", help="List of tracks to rip")
 
-output_opts = parser.add_argument_group("Output options")
-output_opts.add_argument('-r', '--rip-only', dest="encode", default=True, action="store_false")
-output_opts.add_argument('--image', action="store_true", help="Rip the whole image (useful for hardsub runs, only with -r)")
-output_opts.add_argument('--title', default=None, help="Set the base title of the series")
-output_opts.add_argument('--season', default=1, type=int, help="Set the base season of the series")
-output_opts.add_argument('--base', default=1, type=int, help="Set the base season of the series")
-output_opts.add_argument('--encode-options', default="", help="Pass string to ps3enc")
-output_opts.add_argument('--direct', dest="direct_encode", default=False, action="store_true", help="Encode directly, don't rip")
+    output_opts = parser.add_argument_group("Output options")
+    output_opts.add_argument('-r', '--rip-only', dest="encode", default=True, action="store_false")
+    output_opts.add_argument('--image', action="store_true", help="Rip the whole image (useful for hardsub runs, only with -r)")
+    output_opts.add_argument('--title', default=None, help="Set the base title of the series")
+    output_opts.add_argument('--season', default=1, type=int, help="Set the base season of the series")
+    output_opts.add_argument('--base', default=1, type=int, help="Set the base season of the series")
+    output_opts.add_argument('--encode-options', default="", help="Pass string to ps3enc")
+    output_opts.add_argument('--direct', dest="direct_encode", default=False, action="store_true", help="Encode directly, don't rip")
 
-def encode_track(path):
+    return parser.parse_args()
+
     enc_cmd = "ps3enc.py -v %s %s" % (path, args.encode_options)
     if verbose>0: print "cmd: %s" % (enc_cmd)
     os.system(enc_cmd)
@@ -301,7 +304,7 @@ def setup_logging(args):
 
 # Start of code
 if __name__ == "__main__":
-    args = parser.parse_args()
+    args = get_options()
     setup_logging(args)
 
     create_log=None
